@@ -1,0 +1,90 @@
+{
+  "id": "pipe-adapter",
+  "name": "Pipe adapter",
+  "description": "Stepped sleeve joining two pipes of measured outer diameters, each pipe sliding into its own socket against a stop shoulder.",
+  "file": "design.scad",
+  "source": "curated",
+  "licence": "CC0-1.0",
+  "attribution": "Authored for the michani demo, 2026.",
+  "partClass": "B",
+  "riskLabel": "general",
+  "evidenceLevel": "untested",
+  "parameters": [
+    {
+      "id": "socket-a-diameter",
+      "variable": "socket_a_diameter",
+      "attributeId": "outer-diameter",
+      "default": 25.3,
+      "min": 8,
+      "max": 120
+    },
+    {
+      "id": "socket-b-diameter",
+      "variable": "socket_b_diameter",
+      "attributeId": "outer-diameter",
+      "default": 32.3,
+      "min": 8,
+      "max": 120
+    },
+    {
+      "id": "socket-depth",
+      "variable": "socket_depth",
+      "attributeId": "depth",
+      "default": 25,
+      "min": 10,
+      "max": 60
+    },
+    {
+      "id": "wall-thickness",
+      "variable": "wall_thickness",
+      "attributeId": "thickness",
+      "default": 3,
+      "min": 1.6,
+      "max": 6
+    },
+    {
+      "id": "shoulder-thickness",
+      "variable": "shoulder_thickness",
+      "attributeId": "thickness",
+      "default": 3,
+      "min": 1.6,
+      "max": 6
+    }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "socket-a",
+      "featureType": "socket",
+      "attributes": [
+        {
+          "definitionId": "outer-diameter",
+          "value": "socket-a-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "plus",
+      "matesWith": "outer-wall"
+    },
+    {
+      "id": "socket-b",
+      "featureType": "socket",
+      "attributes": [
+        {
+          "definitionId": "outer-diameter",
+          "value": "socket-b-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "plus",
+      "matesWith": "outer-wall"
+    }
+  ],
+  "keywords": [
+    "pipe adapter",
+    "pipe coupling",
+    "hose joiner",
+    "reducer",
+    "tube connector",
+    "pipe fitting"
+  ]
+}

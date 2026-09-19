@@ -45,8 +45,30 @@ export const fitClearance: CheckImplementation = ({
   const problems: string[] = [];
   const revisions: string[] = [];
 
+  // Component features that share a mate id (two pipes each with an outer wall) pair with the
+  // design features that name it, in declaration order: socket-a with the first pipe, socket-b
+  // with the second.
+  const mateQueues = new Map<
+    string,
+    Array<{ componentId: string; feature: InterfaceFeature }>
+  >();
+  for (const component of specification.components) {
+    for (const f of component.interfaceFeatures) {
+      const queue = mateQueues.get(f.id) ?? [];
+      queue.push({ componentId: component.id, feature: f });
+      mateQueues.set(f.id, queue);
+    }
+  }
+  const taken = new Map<string, number>();
+
   for (const feature of design.interfaceFeatures) {
     if (!feature.matesWith) continue;
+    const queue = mateQueues.get(feature.matesWith) ?? [];
+    const index = taken.get(feature.matesWith) ?? 0;
+    const mateEntry = queue[index] ?? queue[queue.length - 1];
+    if (!mateEntry) continue;
+    taken.set(feature.matesWith, index + 1);
+    const mate = mateEntry.feature;
     // The design feature's attribute names the parameter that sets its dimension: the
     // attribute value carries the parameter id as a string.
     for (const attr of feature.attributes) {
@@ -54,37 +76,45 @@ export const fitClearance: CheckImplementation = ({
       const param = design.parameters.find((p) => p.id === attr.value);
       if (!param) continue;
       const designValue = values[param.variable] ?? param.default;
-      for (const component of specification.components) {
-        const mate = component.interfaceFeatures.find(
-          (f) => f.id === feature.matesWith,
-        );
-        if (!mate) continue;
-        const measured = featureValue(mate, attr.definitionId);
-        if (measured === undefined) continue;
-        const rule =
-          feature.clearanceRule === 'none'
-            ? mate.clearanceRule
-            : feature.clearanceRule;
-        pairs.push({
-          designFeature: feature.id,
-          componentFeature: mate.id,
-          attributeId: attr.definitionId,
-          designValue,
-          measured,
-          rule,
-        });
-        const needed =
-          rule === 'minus' ? measured - clearanceMm : measured + clearanceMm;
-        const ok =
+      const measured = featureValue(mate, attr.definitionId);
+      if (measured === undefined) continue;
+      // The design feature's own rule governs. 'none' means the design already accounts for
+      // clearance internally (an enclosure cavity adds it from its own parameter), so the
+      // parameter must equal the measured value.
+      const rule = feature.clearanceRule;
+      pairs.push({
+        designFeature: feature.id,
+        componentFeature: `${mateEntry.componentId}/${mate.id}`,
+        attributeId: attr.definitionId,
+        designValue,
+        measured,
+        rule,
+      });
+      const needed =
+        rule === 'minus'
+          ? measured - clearanceMm
+          : rule === 'plus'
+            ? measured + clearanceMm
+            : measured;
+      const ok =
+        rule === 'minus'
+          ? designValue <= needed + 1e-6
+          : rule === 'plus'
+            ? designValue >= needed - 1e-6
+            : Math.abs(designValue - needed) <= 1e-6;
+      if (!ok) {
+        const relation =
           rule === 'minus'
-            ? designValue <= needed + 1e-6
-            : designValue >= needed - 1e-6;
-        if (!ok) {
-          problems.push(
-            `${feature.id} is ${designValue} mm but ${mate.id} measures ${measured} mm with ${clearanceMm} mm clearance, so it needs ${rule === 'minus' ? 'at most' : 'at least'} ${needed.toFixed(2)} mm.`,
-          );
-          revisions.push(`Set ${param.id} to ${needed.toFixed(2)}.`);
-        }
+            ? 'at most'
+            : rule === 'plus'
+              ? 'at least'
+              : 'exactly';
+        const withClearance =
+          rule === 'none' ? '' : ` with ${clearanceMm} mm clearance`;
+        problems.push(
+          `${feature.id} is ${designValue} mm but ${mate.id} on ${mateEntry.componentId} measures ${measured} mm${withClearance}, so it needs ${relation} ${needed.toFixed(2)} mm.`,
+        );
+        revisions.push(`Set ${param.id} to ${needed.toFixed(2)}.`);
       }
     }
   }

@@ -1,0 +1,63 @@
+{
+  "id": "key-turner",
+  "name": "Key turner",
+  "description": "Lever handle that grips a house key head so it turns with little grip strength. Standalone printed part.",
+  "file": "design.scad",
+  "source": "curated",
+  "licence": "CC0-1.0",
+  "attribution": "Authored for the michani demo, 2026. Part family reference: Makers Making Change 3D Printed Low Tech Assistive Devices Kit.",
+  "partClass": "A",
+  "riskLabel": "general",
+  "evidenceLevel": "untested",
+  "parameters": [
+    {
+      "id": "handle-length",
+      "variable": "handle_length",
+      "attributeId": "length",
+      "default": 90,
+      "min": 60,
+      "max": 140
+    },
+    {
+      "id": "handle-width",
+      "variable": "handle_width",
+      "attributeId": "width",
+      "default": 24,
+      "min": 16,
+      "max": 40
+    },
+    {
+      "id": "thickness",
+      "variable": "thickness",
+      "attributeId": "thickness",
+      "default": 8,
+      "min": 5,
+      "max": 14
+    },
+    {
+      "id": "key-slot-width",
+      "variable": "key_slot_width",
+      "attributeId": "width",
+      "default": 3,
+      "min": 2,
+      "max": 5
+    },
+    {
+      "id": "key-slot-depth",
+      "variable": "key_slot_depth",
+      "attributeId": "depth",
+      "default": 22,
+      "min": 12,
+      "max": 35,
+      "constraints": ["key-slot-depth < handle-length"]
+    }
+  ],
+  "keywords": [
+    "key turner",
+    "key aid",
+    "assistive",
+    "arthritis",
+    "grip",
+    "lever"
+  ]
+}

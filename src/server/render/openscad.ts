@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readStl, type StlSummary } from '@shared/stl';
+import { librariesUsed, libraryFiles } from './libraries';
 
 // Server-side render through the vendored OpenSCAD WebAssembly build, for the verification
 // stage. Same binary the browser uses; Node gets the bytes directly because its fetch refuses
@@ -19,6 +20,8 @@ type OpenSCADModule = {
   FS: {
     writeFile(p: string, d: string | Uint8Array): void;
     readFile(p: string): Uint8Array;
+    mkdir(p: string): void;
+    analyzePath(p: string): { exists: boolean };
   };
   callMain(args: string[]): number;
 };
@@ -47,6 +50,12 @@ export async function renderScadToStl(
     wasmBinary: readFileSync(path.join(wasmDir, 'openscad.wasm')),
   });
   inst.FS.writeFile('/input.scad', scad);
+  for (const name of librariesUsed(scad)) {
+    for (const file of await libraryFiles(name)) {
+      mkdirRecursive(inst, path.posix.dirname(file.path));
+      inst.FS.writeFile(file.path, file.data);
+    }
+  }
   const args = [
     '/input.scad',
     '-o',
@@ -77,4 +86,13 @@ export async function renderScadToStl(
     ms,
     log: logs.join('\n'),
   };
+}
+
+function mkdirRecursive(inst: OpenSCADModule, dir: string): void {
+  const parts = dir.split('/').filter(Boolean);
+  let current = '';
+  for (const part of parts) {
+    current += `/${part}`;
+    if (!inst.FS.analyzePath(current).exists) inst.FS.mkdir(current);
+  }
 }

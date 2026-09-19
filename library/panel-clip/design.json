@@ -1,0 +1,98 @@
+{
+  "id": "panel-clip",
+  "name": "Panel mounting clip",
+  "description": "C-shaped jaw that grips a solar panel frame edge of measured thickness on a saddle that sits over a timber rail of measured width, with one wood screw hole.",
+  "file": "design.scad",
+  "source": "curated",
+  "licence": "CC0-1.0",
+  "attribution": "Authored for the michani demo, 2026. Family reference: Wittbrodt and Pearce, 3-D printing solar photovoltaic racking in developing world, 2017.",
+  "partClass": "B",
+  "riskLabel": "needs expert review",
+  "evidenceLevel": "untested",
+  "parameters": [
+    {
+      "id": "jaw-opening",
+      "variable": "jaw_opening",
+      "attributeId": "thickness",
+      "default": 35.3,
+      "min": 15,
+      "max": 60
+    },
+    {
+      "id": "saddle-opening",
+      "variable": "saddle_opening",
+      "attributeId": "width",
+      "default": 40.3,
+      "min": 20,
+      "max": 100
+    },
+    {
+      "id": "clip-depth",
+      "variable": "clip_depth",
+      "attributeId": "depth",
+      "default": 20,
+      "min": 10,
+      "max": 40
+    },
+    {
+      "id": "wall-thickness",
+      "variable": "wall_thickness",
+      "attributeId": "thickness",
+      "default": 4,
+      "min": 2.4,
+      "max": 8
+    },
+    {
+      "id": "screw-hole-diameter",
+      "variable": "screw_hole_diameter",
+      "attributeId": "hole-diameter",
+      "default": 4.5,
+      "min": 3,
+      "max": 8
+    },
+    {
+      "id": "clip-length",
+      "variable": "clip_length",
+      "attributeId": "length",
+      "default": 40,
+      "min": 20,
+      "max": 80
+    }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "jaw",
+      "featureType": "slot",
+      "attributes": [
+        {
+          "definitionId": "thickness",
+          "value": "jaw-opening",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "plus",
+      "matesWith": "frame-edge"
+    },
+    {
+      "id": "saddle",
+      "featureType": "slot",
+      "attributes": [
+        {
+          "definitionId": "width",
+          "value": "saddle-opening",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "plus",
+      "matesWith": "rail-top"
+    }
+  ],
+  "keywords": [
+    "solar panel clip",
+    "panel mount",
+    "frame clip",
+    "rail clip",
+    "photovoltaic mounting",
+    "timber rail bracket"
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "id": "board-enclosure",
+  "name": "Board enclosure",
+  "description": "Two-part case for a rectangular circuit board with four corner mounting holes on standoffs and one opening in a long side wall.",
+  "file": "design.scad",
+  "source": "curated",
+  "licence": "CC0-1.0",
+  "attribution": "Authored for the michani demo, 2026. Family reference: Wijnen, Anzalone and Pearce, Open-source mobile water quality testing platform, 2014. Board preview: NopSCADlib (GPL-3.0).",
+  "partClass": "C",
+  "riskLabel": "general",
+  "evidenceLevel": "untested",
+  "parameters": [
+    {
+      "id": "board-length",
+      "variable": "board_length",
+      "attributeId": "length",
+      "default": 60,
+      "min": 20,
+      "max": 200
+    },
+    {
+      "id": "board-width",
+      "variable": "board_width",
+      "attributeId": "width",
+      "default": 40,
+      "min": 20,
+      "max": 200
+    },
+    {
+      "id": "hole-diameter",
+      "variable": "hole_diameter",
+      "attributeId": "hole-diameter",
+      "default": 3,
+      "min": 2,
+      "max": 6
+    },
+    {
+      "id": "hole-inset",
+      "variable": "hole_inset",
+      "attributeId": "hole-inset",
+      "default": 3.5,
+      "min": 2,
+      "max": 12
+    },
+    {
+      "id": "standoff-height",
+      "variable": "standoff_height",
+      "attributeId": "height",
+      "default": 5,
+      "min": 3,
+      "max": 15
+    },
+    {
+      "id": "wall-thickness",
+      "variable": "wall_thickness",
+      "attributeId": "thickness",
+      "default": 2,
+      "min": 1.2,
+      "max": 4
+    },
+    {
+      "id": "clearance",
+      "variable": "clearance",
+      "attributeId": "clearance",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 2
+    },
+    {
+      "id": "lid-height",
+      "variable": "lid_height",
+      "attributeId": "height",
+      "default": 15,
+      "min": 5,
+      "max": 60
+    },
+    {
+      "id": "opening-width",
+      "variable": "opening_width",
+      "attributeId": "width",
+      "default": 12,
+      "min": 4,
+      "max": 100
+    },
+    {
+      "id": "opening-height",
+      "variable": "opening_height",
+      "attributeId": "height",
+      "default": 8,
+      "min": 3,
+      "max": 50
+    },
+    {
+      "id": "opening-offset",
+      "variable": "opening_offset",
+      "attributeId": "offset",
+      "default": 30,
+      "min": 0,
+      "max": 200,
+      "constraints": ["opening-offset <= board-length"]
+    },
+    {
+      "id": "part",
+      "variable": "part",
+      "attributeId": "part-selector",
+      "default": 0,
+      "min": 0,
+      "max": 2
+    },
+    {
+      "id": "show-board",
+      "variable": "show_board",
+      "attributeId": "preview-flag",
+      "default": 0,
+      "min": 0,
+      "max": 1
+    }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "board-cavity",
+      "featureType": "slot",
+      "attributes": [
+        {
+          "definitionId": "length",
+          "value": "board-length",
+          "source": "library"
+        },
+        {
+          "definitionId": "width",
+          "value": "board-width",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "board-outline"
+    },
+    {
+      "id": "standoff-1",
+      "featureType": "hole",
+      "attributes": [
+        {
+          "definitionId": "hole-diameter",
+          "value": "hole-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "hole-1"
+    },
+    {
+      "id": "standoff-2",
+      "featureType": "hole",
+      "attributes": [
+        {
+          "definitionId": "hole-diameter",
+          "value": "hole-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "hole-2"
+    },
+    {
+      "id": "standoff-3",
+      "featureType": "hole",
+      "attributes": [
+        {
+          "definitionId": "hole-diameter",
+          "value": "hole-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "hole-3"
+    },
+    {
+      "id": "standoff-4",
+      "featureType": "hole",
+      "attributes": [
+        {
+          "definitionId": "hole-diameter",
+          "value": "hole-diameter",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "hole-4"
+    },
+    {
+      "id": "side-opening",
+      "featureType": "opening",
+      "attributes": [
+        {
+          "definitionId": "offset",
+          "value": "opening-offset",
+          "source": "library"
+        }
+      ],
+      "clearanceRule": "none",
+      "matesWith": "connector"
+    }
+  ],
+  "keywords": [
+    "enclosure",
+    "case",
+    "box",
+    "housing",
+    "circuit board case",
+    "sensor board",
+    "water tester housing",
+    "pcb enclosure"
+  ]
+}
