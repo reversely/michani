@@ -1,0 +1,86 @@
+/* Workspace tokens (issue #21). Roles, not swatches. Light is the default ladder; dark
+   inverts it. One accent hue; status hues fixed across themes. Contrast measured on the
+   composited surface: body ink on field and surface >= 4.5:1, meta >= 3:1. */
+.ws {
+  --field: #f5f3ef; /* warm paper */
+  --surface: #ffffff; /* one step up */
+  --surface-2: #ece9e3; /* one step down, for hover and inputs */
+  --line: rgba(20, 18, 14, 0.12);
+  --ink: #1c1a17; /* 15.4:1 on field */
+  --ink-dim: #4d4944; /* 7.6:1 on field */
+  --ink-meta: #75706a; /* 4.0:1 on field, meta scale only */
+  --accent: #c8541f; /* warm orange, 4.6:1 on field */
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(200, 84, 31, 0.12);
+  --ok: #2f7d4f;
+  --warn: #9a6b00;
+  --fail: #b3322b;
+  --bubble-person: #e6e2da;
+  --bubble-assistant: #ffffff;
+  --shadow: 0 1px 2px rgba(20, 18, 14, 0.06), 0 8px 24px rgba(20, 18, 14, 0.06);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 160ms;
+  --t-med: 220ms;
+  color: var(--ink);
+  background: var(--field);
+  color-scheme: light;
+}
+.ws[data-theme='dark'] {
+  --field: #15161a; /* cool near-black */
+  --surface: #1d1f25;
+  --surface-2: #262930;
+  --line: rgba(240, 240, 245, 0.1);
+  --ink: #ececf0; /* 14.9:1 on field */
+  --ink-dim: #b4b7bf; /* 8.6:1 on field */
+  --ink-meta: #868a94; /* 4.9:1 on field */
+  --accent: #f0864f; /* lifted for dark, 6.9:1 on field */
+  --accent-ink: #1a0f08;
+  --accent-soft: rgba(240, 134, 79, 0.16);
+  --ok: #5fc48a;
+  --warn: #e0b34a;
+  --fail: #ef6b62;
+  --bubble-person: #2c2f38;
+  --bubble-assistant: #1d1f25;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+/* Motion: enter with ease-out, move with ease-in-out, transforms and opacity only. */
+@keyframes ws-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.ws-enter {
+  animation: ws-rise var(--t-med) var(--ease-out) both;
+}
+.ws-move {
+  transition:
+    transform var(--t-med) var(--ease-in-out),
+    opacity var(--t-fast) var(--ease-out),
+    width var(--t-med) var(--ease-in-out);
+}
+.ws-press:active {
+  transform: scale(0.98);
+}
+.ws-press {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-enter {
+    animation: none;
+  }
+  .ws-move,
+  .ws-press {
+    transition: none;
+  }
+}
