@@ -141,7 +141,7 @@ export const Route = createFileRoute('/api/demo/library')({
           if (err instanceof DemoError)
             return json({ error: err.message }, err.status);
           if (err instanceof z.ZodError)
-            return json({ error: 'invalid_request' }, 400);
+            return json({ error: 'invalid_request', issues: err.issues }, 400);
           logError(err, { functionName: 'demo-library', statusCode: 500 });
           return json({ error: 'library_failed' }, 500);
         }

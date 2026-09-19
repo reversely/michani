@@ -22,6 +22,17 @@ test('a stool request reaches a no-match and a generation plan', async ({
   );
   await expect(page.getByText(/Generate a new design:/).first()).toBeVisible();
   await page.screenshot({ path: shot('stool-2-no-match'), fullPage: true });
+  await page.getByRole('button', { name: 'Confirm plan' }).click();
+  await expect(page.getByText('Plan confirmed')).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'Generate a new design' }).click();
+  await expect(page.getByText('Check report', { exact: true })).toBeVisible({
+    timeout: 180_000,
+  });
+  await page.screenshot({ path: shot('stool-3-generated'), fullPage: true });
+  await expect(page.getByText(/Evidence level/).first()).toBeVisible();
+  await expect(page.getByText('untested').first()).toBeVisible();
 });
 
 test('D1: tweezers request runs to the check report and download', async ({

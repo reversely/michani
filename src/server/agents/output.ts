@@ -30,7 +30,10 @@ export function unwrapSerialisedField(output: unknown, field: string): unknown {
   try {
     parsed = JSON.parse(inner);
   } catch {
-    return output;
+    // Plain prose in an array field (seen live: a sentence about why nothing matched). Drop
+    // the field so the strict parse treats it as absent rather than failing the step.
+    const { [field]: _dropped, ...rest } = output as Record<string, unknown>;
+    return rest;
   }
   if (Array.isArray(parsed)) return { ...output, [field]: parsed };
   // A whole answer serialised into the field: it may legitimately omit the field itself.
