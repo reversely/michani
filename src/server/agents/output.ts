@@ -40,3 +40,15 @@ export function unwrapSerialisedField(output: unknown, field: string): unknown {
   if (parsed && typeof parsed === 'object') return parsed;
   return output;
 }
+
+// For agents that carry a provider-executed tool (web search), the API refuses a forced output
+// tool, so the final answer arrives as text. This pulls the first JSON object out of it.
+export function parseJsonAnswer(text: string): unknown {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const body = fenced ? fenced[1] : text;
+  const start = body.indexOf('{');
+  const end = body.lastIndexOf('}');
+  if (start < 0 || end <= start)
+    throw new Error('no JSON object in the answer');
+  return JSON.parse(body.slice(start, end + 1));
+}

@@ -77,11 +77,16 @@ describe('requirements agent (#13, recorded)', () => {
     expect(spec.purpose).toBe('p');
   });
 
-  it('rejects an extraction that tries to set fields outside the schema', () => {
+  it('ignores fields outside the schema, so a model cannot set a plan or a state', () => {
     const s = newSession('77777777-7777-4777-8777-777777777777');
-    expect(() =>
-      finaliseExtracted({ purpose: 'p', plan: { confirmed: true } }, s),
-    ).toThrow();
+    const spec = finaliseExtracted(
+      { purpose: 'p', plan: { confirmed: true }, state: 'executed' },
+      s,
+    );
+    expect(spec.purpose).toBe('p');
+    expect('plan' in spec).toBe(false);
+    expect(s.plan).toBeUndefined();
+    expect(s.state).toBe('gathering');
   });
 });
 

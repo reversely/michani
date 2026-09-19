@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { PartClass, Specification } from '@shared/schemas/library';
 import type { StlSummary } from '@shared/stl';
 import { toolSet } from '@/engine/tools/registry';
+import { researchTools } from '@/engine/tools/research';
+import { parseJsonAnswer } from '@/server/agents/output';
 
 // Verification agents (issue #14). Each registers with a name, the part classes it covers, a
 // tool set, a step budget, and instructions. It concludes with a result, a finding, a
@@ -16,6 +18,8 @@ export type VerificationAgent = {
   tools: string[];
   budget: number;
   instructions: string;
+  // Grants the provider web search tool for typical values, standards, and existing designs.
+  research?: boolean;
 };
 
 export const verdictSchema = z
@@ -90,14 +94,33 @@ export async function runVerificationAgent(
 ): Promise<AgentVerdict> {
   const started = Date.now();
   const { system, prompt } = buildVerificationPrompt(agent, ctx);
-  const result = await generateText({
-    model,
-    system,
-    prompt,
-    tools: toolSet(agent.tools),
-    stopWhen: stepCountIs(agent.budget),
-    output: Output.object({ schema: verdictSchema }),
-  });
+  const research = agent.research ? researchTools(model) : {};
+  const withResearch = Object.keys(research).length > 0;
+  const result = withResearch
+    ? await generateText({
+        model,
+        system: `${system}\nAnswer, when you are done with tools, with exactly one JSON object and no prose: {"result": "pass" | "warn" | "fail", "finding": string, "suggestedRevision"?: string}.`,
+        prompt,
+        tools: { ...toolSet(agent.tools), ...research },
+        stopWhen: stepCountIs(agent.budget + 2),
+      })
+    : await generateText({
+        model,
+        system,
+        prompt,
+        tools: toolSet(agent.tools),
+        stopWhen: stepCountIs(agent.budget),
+        output: Output.object({ schema: verdictSchema }),
+      });
+  const rawVerdict = withResearch
+    ? (() => {
+        try {
+          return parseJsonAnswer(result.text);
+        } catch {
+          return undefined;
+        }
+      })()
+    : result.output;
   const evidence: Evidence[] = [];
   for (const step of result.steps) {
     for (const call of step.toolCalls) {
@@ -113,7 +136,7 @@ export async function runVerificationAgent(
   }
   let verdict: z.infer<typeof verdictSchema>;
   try {
-    verdict = verdictSchema.parse(result.output);
+    verdict = verdictSchema.parse(rawVerdict);
   } catch (err) {
     verdict = {
       result: 'warn',
@@ -196,7 +219,8 @@ export function registerDefaultVerificationAgents(): void {
     name: 'Requirement coverage',
     partClasses: ['A', 'B', 'C'],
     tools: ['library_design', 'materials'],
-    budget: 3,
+    research: true,
+    budget: 4,
     instructions:
       'For each requirement statement in the specification, decide from the values, the mesh size, and the material table whether the part meets it. Warn on any statement the data cannot show either way.',
   });

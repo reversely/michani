@@ -24,7 +24,10 @@ export const Route = createFileRoute('/api/engine/turn')({
       OPTIONS: preflight,
       POST: async ({ request }) => {
         try {
-          const body = bodySchema.parse(await request.json());
+          const parsedBody = bodySchema.safeParse(await request.json());
+          if (!parsedBody.success)
+            return json({ error: 'invalid_request' }, 400);
+          const body = parsedBody.data;
           const started = Date.now();
           const r = await engineInstance().turn(
             loadSession(body.sessionId),
@@ -46,8 +49,7 @@ export const Route = createFileRoute('/api/engine/turn')({
             elapsedMs: Date.now() - started,
           });
         } catch (err) {
-          if (err instanceof z.ZodError)
-            return json({ error: 'invalid_request' }, 400);
+          // A ZodError here comes from a model answer, not the request: report it as a failure.
           logError(err, { functionName: 'engine-turn', statusCode: 500 });
           return json(
             {

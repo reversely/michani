@@ -155,7 +155,9 @@ export function addTurn(
 
 // One gathering turn: the caller supplies an extractor (the requirements agent in #13, or a
 // scripted one in tests) that reads the transcript and returns the updated Specification.
-export type Extractor = (session: Session) => Promise<Specification>;
+export type Extractor = (
+  session: Session,
+) => Promise<Specification | { specification: Specification; reply?: string }>;
 
 export type TurnResult = { session: Session; reply: string };
 
@@ -167,19 +169,44 @@ export async function gatherTurn(
   if (session.state !== 'gathering')
     throw new TransitionError(session.state, 'gathering', 'not gathering');
   let next = addTurn(session, 'user', message);
-  const specification = specificationSchema.parse(await extract(next));
+  const extracted = await extract(next);
+  const specification = specificationSchema.parse(
+    'specification' in extracted ? extracted.specification : extracted,
+  );
+  const agentReply = 'specification' in extracted ? extracted.reply : undefined;
   next = { ...next, specification };
   const missing = missingFields(specification);
+  const lastAssistant = [...next.transcript]
+    .reverse()
+    .find((t) => t.role === 'assistant')?.text;
+  if (specification.scope === 'not-printable') {
+    // Not a printed part: stay in gathering and let the agent's reply steer to printable parts.
+    // A reply repeated verbatim is replaced, so an insistent person still gets a new sentence.
+    const proposed =
+      agentReply ??
+      'That is not a part a desktop printer can produce as one piece. Which printable component of it do you need?';
+    const reply =
+      proposed === lastAssistant
+        ? `I can only produce components of it, not the whole thing. Name the component you need, for example the parts I listed, and give its rough size.`
+        : proposed;
+    return { session: addTurn(next, 'assistant', reply), reply };
+  }
   if (missing.length === 0) {
     const reply =
       'I have everything needed for a specification. Next I choose a design and propose a plan.';
     next = advance(addTurn(next, 'assistant', reply), 'specified');
     return { session: next, reply };
   }
-  const reply = missing
+  const canned = missing
     .slice(0, 2)
     .map((f) => f.ask)
     .join(' ');
+  // The agent's reply wins; the template is the fallback; neither is repeated verbatim.
+  const proposed = agentReply ?? canned;
+  const reply =
+    proposed === lastAssistant
+      ? `${proposed} If you are unsure, say so and I will propose typical values.`
+      : proposed;
   return { session: addTurn(next, 'assistant', reply), reply };
 }
 

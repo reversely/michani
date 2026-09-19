@@ -182,10 +182,10 @@ export function EngineView() {
     : undefined;
 
   return (
-    <div className="flex h-full w-full flex-col gap-4 overflow-y-auto p-4 text-adam-text-primary lg:flex-row lg:overflow-hidden">
+    <div className="flex min-h-full w-full flex-col gap-4 p-4 text-adam-text-primary lg:h-[calc(100dvh-2rem)] lg:flex-row lg:overflow-hidden">
       <section
         aria-label="Conversation"
-        className="flex min-h-[60vh] flex-1 flex-col rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 lg:h-full lg:min-h-0"
+        className="flex h-[70dvh] flex-1 flex-col rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 lg:h-full lg:min-h-0"
       >
         <h1 className="border-b border-adam-neutral-700 px-4 py-3 text-base font-semibold">
           Printed part from a conversation

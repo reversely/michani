@@ -185,6 +185,9 @@ export const specificationSchema = z
     environment: z.string().min(1).optional(),
     contactClass: contactClassSchema.optional(),
     hardware: z.enum(['none', 'listed']).optional(),
+    // Whether the thing asked for is a printed part at all: a whole ladder is not, its rung
+    // caps are. Set by the requirements agent; not-printable keeps the session gathering.
+    scope: z.enum(['printable', 'not-printable', 'unclear']).optional(),
     components: z.array(componentRecordSchema).default([]),
     partMeasurements: z.array(partMeasurementSchema).default([]),
     printSettings: z.array(attributeValueSchema).default([]),
