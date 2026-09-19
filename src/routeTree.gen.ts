@@ -35,6 +35,7 @@ import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscri
 import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth';
 import { Route as LayoutSplatRouteImport } from './routes/_layout/$';
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$';
+import { Route as ApiDemoRunLoopRouteImport } from './routes/api/demo/run-loop';
 import { Route as ApiDemoRequirementsRouteImport } from './routes/api/demo/requirements';
 import { Route as ApiDemoLibraryRouteImport } from './routes/api/demo/library';
 import { Route as ApiDemoDraftRouteImport } from './routes/api/demo/draft';
@@ -174,6 +175,11 @@ const ApiJacksonPollockSplatRoute = ApiJacksonPollockSplatRouteImport.update({
   path: '/api/jackson-pollock/$',
   getParentRoute: () => rootRouteImport,
 } as any);
+const ApiDemoRunLoopRoute = ApiDemoRunLoopRouteImport.update({
+  id: '/api/demo/run-loop',
+  path: '/api/demo/run-loop',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ApiDemoRequirementsRoute = ApiDemoRequirementsRouteImport.update({
   id: '/api/demo/requirements',
   path: '/api/demo/requirements',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
+  '/api/demo/run-loop': typeof ApiDemoRunLoopRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
+  '/api/demo/run-loop': typeof ApiDemoRunLoopRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
+  '/api/demo/run-loop': typeof ApiDemoRunLoopRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -371,6 +380,7 @@ export interface FileRouteTypes {
     | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
+    | '/api/demo/run-loop'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete';
@@ -407,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
+    | '/api/demo/run-loop'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete';
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
+    | '/api/demo/run-loop'
     | '/api/jackson-pollock/$'
     | '/_layout/_auth/editor/$id'
     | '/api/internal/account/delete';
@@ -476,6 +488,7 @@ export interface RootRouteChildren {
   ApiDemoDraftRoute: typeof ApiDemoDraftRoute;
   ApiDemoLibraryRoute: typeof ApiDemoLibraryRoute;
   ApiDemoRequirementsRoute: typeof ApiDemoRequirementsRoute;
+  ApiDemoRunLoopRoute: typeof ApiDemoRunLoopRoute;
   ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute;
   ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute;
 }
@@ -664,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJacksonPollockSplatRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    '/api/demo/run-loop': {
+      id: '/api/demo/run-loop';
+      path: '/api/demo/run-loop';
+      fullPath: '/api/demo/run-loop';
+      preLoaderRoute: typeof ApiDemoRunLoopRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/demo/requirements': {
       id: '/api/demo/requirements';
       path: '/api/demo/requirements';
@@ -800,6 +820,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDemoDraftRoute: ApiDemoDraftRoute,
   ApiDemoLibraryRoute: ApiDemoLibraryRoute,
   ApiDemoRequirementsRoute: ApiDemoRequirementsRoute,
+  ApiDemoRunLoopRoute: ApiDemoRunLoopRoute,
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,
   ApiInternalAccountDeleteRoute: ApiInternalAccountDeleteRoute,
 };

@@ -84,32 +84,46 @@ const parameterSchema = z.object({
   defaultValue: z.number(),
   type: z.literal('number'),
 });
-const attemptSchema = z.object({
+const checkResultSchema = z.object({
+  checkId: z.string(),
+  result: z.enum(['pass', 'warn', 'fail']),
+  finding: z.string(),
+  suggestedRevision: z.string().optional(),
+});
+const reportSchema = z.object({
+  results: z.array(checkResultSchema),
+  didNotRun: z.array(
+    z.object({ checkId: z.string(), name: z.string(), reason: z.string() }),
+  ),
+  failed: z.array(checkResultSchema),
+  warned: z.array(checkResultSchema),
+});
+const loopAttemptSchema = z.object({
   attempt: z.number(),
+  designId: z.string(),
   proposed: z.record(z.number()),
   violations: z.array(
     z.object({ name: z.string(), reason: z.string(), detail: z.string() }),
   ),
-  notes: z.string().optional(),
+  renderMs: z.number().optional(),
+  report: reportSchema.optional(),
   elapsedMs: z.number(),
 });
-const draftResponse = z.object({
-  outcome: z.discriminatedUnion('ok', [
-    z.object({
-      ok: z.literal(true),
-      params: z.array(parameterSchema),
-      values: z.record(z.number()),
-      attempts: z.array(attemptSchema),
-    }),
-    z.object({
-      ok: z.literal(false),
-      attempts: z.array(attemptSchema),
-      message: z.string(),
-    }),
-  ]),
+const loopResponse = z.object({
+  outcome: z.object({
+    ok: z.boolean(),
+    designId: z.string(),
+    values: z.record(z.number()).optional(),
+    params: z.array(parameterSchema).optional(),
+    report: reportSchema.optional(),
+    attempts: z.array(loopAttemptSchema),
+    reselected: z.boolean(),
+    message: z.string(),
+  }),
   scad: z.string(),
+  elapsedMs: z.number(),
 });
-type DraftStep = z.infer<typeof draftResponse>;
+type LoopStep = z.infer<typeof loopResponse>;
 
 export function DemoView() {
   const { user } = useAuth();
@@ -123,7 +137,7 @@ export function DemoView() {
   const [specification, setSpecification] = useState<Specification>();
   const [plan, setPlan] = useState<Plan>();
   const [library, setLibrary] = useState<LibraryStep>();
-  const [draft, setDraft] = useState<DraftStep>();
+  const [loop, setLoop] = useState<LoopStep>();
   const [busy, setBusy] = useState<
     'requirements' | 'library' | 'confirm' | 'draft' | null
   >(null);
@@ -169,7 +183,7 @@ export function DemoView() {
       );
       setElapsedMs(r.elapsedMs);
       setLibrary(undefined);
-      setDraft(undefined);
+      setLoop(undefined);
       if (r.result.kind === 'question') {
         setQuestion(r.result);
         setSpecification(undefined);
@@ -206,18 +220,18 @@ export function DemoView() {
     }
   }, [conversationId]);
 
-  const runDraft = useCallback(async () => {
+  const runLoop = useCallback(async () => {
     if (!conversationId) return;
     setBusy('draft');
     setError(undefined);
     try {
-      const r = draftResponse.parse(
-        await apiJson('demo/draft', {
+      const r = loopResponse.parse(
+        await apiJson('demo/run-loop', {
           method: 'POST',
           body: JSON.stringify({ conversationId }),
         }),
       );
-      setDraft(r);
+      setLoop(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -366,57 +380,89 @@ export function DemoView() {
       )}
       {plan?.confirmed && plan.function === 'adaptation' && (
         <section
-          aria-label="Drafting and render"
+          aria-label="Draft, render, and checks"
           className="flex flex-col gap-3 rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 p-4 sm:p-6"
         >
-          <h2 className="text-base font-semibold">Draft and render</h2>
-          {!draft && (
+          <h2 className="text-base font-semibold">Draft, render, and checks</h2>
+          {!loop && (
             <Button
               type="button"
-              onClick={() => void runDraft()}
+              onClick={() => void runLoop()}
               disabled={busy !== null}
               className="w-full sm:w-auto"
             >
-              {busy === 'draft'
-                ? 'Drafting parameter values'
-                : 'Draft parameter values'}
+              {busy === 'draft' ? 'Running the loop' : 'Run the loop'}
             </Button>
           )}
-          {draft && (
-            <ol className="flex flex-col gap-1 text-sm">
-              {draft.outcome.attempts.map((a) => (
-                <li key={a.attempt}>
-                  Attempt {a.attempt} ({(a.elapsedMs / 1000).toFixed(1)} s):{' '}
-                  {a.violations.length === 0
-                    ? 'accepted'
-                    : a.violations.map((v) => v.detail).join('; ')}
-                  {a.notes ? ` Notes: ${a.notes}` : ''}
-                </li>
-              ))}
-            </ol>
-          )}
-          {draft && !draft.outcome.ok && (
-            <p className="text-sm text-red-400" role="alert">
-              {draft.outcome.message}
-            </p>
-          )}
-          {draft?.outcome.ok && (
+          {loop && (
             <>
-              <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[12rem_1fr]">
-                {Object.entries(draft.outcome.values).map(([k, v]) => (
-                  <div key={k} className="contents">
-                    <dt className="text-adam-neutral-300">{k}</dt>
-                    <dd>{v}</dd>
-                  </div>
+              <p className="text-sm" role="status">
+                {loop.outcome.message} Loop time{' '}
+                {(loop.elapsedMs / 1000).toFixed(1)} s.
+              </p>
+              <ol className="flex flex-col gap-1 text-sm">
+                {loop.outcome.attempts.map((a) => (
+                  <li key={a.attempt}>
+                    Attempt {a.attempt} on {a.designId} (
+                    {(a.elapsedMs / 1000).toFixed(1)} s
+                    {a.renderMs !== undefined
+                      ? `, render ${a.renderMs} ms`
+                      : ''}
+                    ):{' '}
+                    {a.violations.length > 0
+                      ? a.violations.map((v) => v.detail).join('; ')
+                      : a.report
+                        ? a.report.failed.length === 0
+                          ? 'every check passed'
+                          : a.report.failed.map((f) => f.finding).join('; ')
+                        : 'no report'}
+                  </li>
                 ))}
-              </dl>
-              <div className="h-[420px] w-full overflow-hidden rounded-md border border-adam-neutral-700">
-                <OpenSCADPreview
-                  scadCode={draft.scad}
-                  params={draft.outcome.params as Parameter[]}
-                  color="#4682B4"
-                />
-              </div>
+              </ol>
+              {loop.outcome.report && (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="text-adam-neutral-300">
+                      <th className="py-1 pr-3">Check</th>
+                      <th className="py-1 pr-3">Result</th>
+                      <th className="py-1">Finding</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loop.outcome.report.results.map((r) => (
+                      <tr key={r.checkId} className="align-top">
+                        <td className="py-1 pr-3">{r.checkId}</td>
+                        <td className="py-1 pr-3">{r.result}</td>
+                        <td className="py-1">
+                          {r.finding}
+                          {r.suggestedRevision
+                            ? ` Suggested revision: ${r.suggestedRevision}`
+                            : ''}
+                        </td>
+                      </tr>
+                    ))}
+                    {loop.outcome.report.didNotRun.map((d) => (
+                      <tr
+                        key={d.checkId}
+                        className="align-top text-adam-neutral-400"
+                      >
+                        <td className="py-1 pr-3">{d.checkId}</td>
+                        <td className="py-1 pr-3">did not run</td>
+                        <td className="py-1">{d.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {loop.outcome.ok && loop.outcome.params && (
+                <div className="h-[420px] w-full overflow-hidden rounded-md border border-adam-neutral-700">
+                  <OpenSCADPreview
+                    scadCode={loop.scad}
+                    params={loop.outcome.params as Parameter[]}
+                    color="#4682B4"
+                  />
+                </div>
+              )}
             </>
           )}
         </section>
