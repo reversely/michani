@@ -1,23 +1,42 @@
-/* Workspace tokens (issue #21). Roles, not swatches. Light is the default ladder; dark
-   inverts it. One accent hue; status hues fixed across themes. Contrast measured on the
-   composited surface: body ink on field and surface >= 4.5:1, meta >= 3:1. */
+/* Workspace tokens (issues #21, #26). Roles, not swatches. Three luminance steps hold the
+   layout apart in both themes: the sidebar (nav) is the darkest plane, the canvas (field) is
+   the middle, and panels (surface) are the lightest. Light: nav L 0.022, field L 0.825,
+   surface L 1.000. Dark: nav L 0.005, field L 0.011, surface L 0.020. One accent hue (warm
+   orange); status hues keep their hue across themes and only shift lightness for contrast.
+   Ratios are WCAG contrast measured on the composited surface: body ink >= 4.5:1 on every
+   surface it sits on, meta >= 4.5:1 on field and surface, >= 3:1 on surface-2 tags. */
 .ws {
-  --field: #f5f3ef; /* warm paper */
-  --surface: #ffffff; /* one step up */
-  --surface-2: #ece9e3; /* one step down, for hover and inputs */
-  --line: rgba(20, 18, 14, 0.12);
-  --ink: #1c1a17; /* 15.4:1 on field */
-  --ink-dim: #4d4944; /* 7.6:1 on field */
-  --ink-meta: #75706a; /* 4.0:1 on field, meta scale only */
-  --accent: #c8541f; /* warm orange, 4.6:1 on field */
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(200, 84, 31, 0.12);
-  --ok: #2f7d4f;
-  --warn: #9a6b00;
-  --fail: #b3322b;
-  --bubble-person: #e6e2da;
-  --bubble-assistant: #ffffff;
-  --shadow: 0 1px 2px rgba(20, 18, 14, 0.06), 0 8px 24px rgba(20, 18, 14, 0.06);
+  /* Canvas and panels */
+  --field: #edeae4; /* grey-beige canvas, the page background */
+  --surface: #ffffff; /* panels, cards, and the composer, one step up from the canvas */
+  --surface-2: #f3f1ec; /* inputs, tags, and hover inside a panel, half a step down */
+  --line: rgba(20, 18, 14, 0.14); /* hairline borders on field and surface */
+  /* Text tiers */
+  --ink: #1c1a17; /* headings and body: 14.5:1 on field, 17.4:1 on surface */
+  --ink-dim: #4a4640; /* secondary body: 7.8:1 on field, 9.4:1 on surface, 8.3:1 on surface-2 */
+  --ink-meta: #6b665f; /* meta at text-xs: 4.7:1 on field, 5.7:1 on surface, 5.0:1 on surface-2 */
+  /* Accent: the primary action and the current item only */
+  --accent: #b0461a; /* 4.7:1 on field, 5.6:1 on surface */
+  --accent-ink: #ffffff; /* 5.6:1 on accent */
+  --accent-soft: rgba(176, 70, 26, 0.12); /* selected row wash on surface */
+  /* Status, fixed hues: dots, rails, and tags */
+  --ok: #2a7048; /* 5.0:1 on field, 5.3:1 on surface-2 */
+  --warn: #855a00; /* 5.1:1 on field, 5.4:1 on surface-2 */
+  --fail: #b3322b; /* 5.1:1 on field, 5.5:1 on surface-2 */
+  /* Conversation */
+  --bubble-person: #e2ded6; /* one step below field so the person's turn recedes */
+  --bubble-assistant: #ffffff; /* the assistant's turn is a panel */
+  --shadow: 0 1px 2px rgba(20, 18, 14, 0.06), 0 8px 24px rgba(20, 18, 14, 0.08);
+  /* Sidebar: dark charcoal with light text, the same in both themes except for its depth */
+  --nav-bg: #2a2926; /* warm charcoal */
+  --nav-ink: #f4f2ed; /* nav items: 13.0:1 on nav-bg */
+  --nav-ink-dim: #b8b3ab; /* group labels and secondary items: 7.0:1 on nav-bg */
+  --nav-ink-meta: #9a958d; /* counts and dates at text-xs: 4.9:1 on nav-bg */
+  --nav-line: rgba(255, 255, 255, 0.1); /* dividers inside the sidebar */
+  --nav-hover: rgba(255, 255, 255, 0.06); /* hover wash on a nav item */
+  --nav-active: #f0864f; /* accent lifted for the dark plane: 5.7:1 on nav-bg */
+  --nav-active-soft: rgba(240, 134, 79, 0.14); /* wash behind the open part */
+  /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --t-fast: 160ms;
@@ -27,22 +46,30 @@
   color-scheme: light;
 }
 .ws[data-theme='dark'] {
-  --field: #15161a; /* cool near-black */
-  --surface: #1d1f25;
-  --surface-2: #262930;
+  --field: #1a1b1f; /* cool near-black canvas */
+  --surface: #25272d; /* panels lift one step toward the reader */
+  --surface-2: #30333b; /* inputs, tags, and hover inside a panel */
   --line: rgba(240, 240, 245, 0.1);
-  --ink: #ececf0; /* 14.9:1 on field */
-  --ink-dim: #b4b7bf; /* 8.6:1 on field */
-  --ink-meta: #868a94; /* 4.9:1 on field */
-  --accent: #f0864f; /* lifted for dark, 6.9:1 on field */
-  --accent-ink: #1a0f08;
+  --ink: #ececf0; /* 14.6:1 on field, 12.7:1 on surface */
+  --ink-dim: #b4b7bf; /* 7.4:1 on surface */
+  --ink-meta: #9498a2; /* 6.0:1 on field, 5.2:1 on surface, 4.4:1 on surface-2 */
+  --accent: #f0864f; /* lifted for dark: 6.7:1 on field, 5.9:1 on surface */
+  --accent-ink: #1a0f08; /* 7.4:1 on accent */
   --accent-soft: rgba(240, 134, 79, 0.16);
-  --ok: #5fc48a;
-  --warn: #e0b34a;
-  --fail: #ef6b62;
-  --bubble-person: #2c2f38;
-  --bubble-assistant: #1d1f25;
+  --ok: #5fc48a; /* 6.9:1 on surface */
+  --warn: #e0b34a; /* 7.6:1 on surface */
+  --fail: #ef6b62; /* 4.9:1 on surface */
+  --bubble-person: #2e3138;
+  --bubble-assistant: #25272d;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --nav-bg: #0f1013; /* below the canvas, so the ladder still reads nav < field < surface */
+  --nav-ink: #ececf0; /* 16.2:1 on nav-bg */
+  --nav-ink-dim: #a3a7b0; /* 7.9:1 on nav-bg */
+  --nav-ink-meta: #8a8e98; /* 5.7:1 on nav-bg */
+  --nav-line: rgba(240, 240, 245, 0.08);
+  --nav-hover: rgba(255, 255, 255, 0.05);
+  --nav-active: #f0864f; /* 7.5:1 on nav-bg */
+  --nav-active-soft: rgba(240, 134, 79, 0.14);
   color-scheme: dark;
 }
 
@@ -74,6 +101,9 @@
     transform var(--t-fast) var(--ease-out),
     background-color var(--t-fast) var(--ease-out),
     color var(--t-fast) var(--ease-out);
+}
+.ws-nav-item:hover {
+  background: var(--nav-hover);
 }
 @media (prefers-reduced-motion: reduce) {
   .ws-enter {

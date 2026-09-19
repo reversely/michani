@@ -90,8 +90,8 @@ export function LibrarySpace() {
       className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-14 lg:px-8 lg:pt-6"
     >
       <div className="ws-enter">
-        <h1 className="text-lg font-semibold">Library</h1>
-        <p className="text-sm" style={{ color: 'var(--ink-meta)' }}>
+        <h1 className="text-xl font-semibold">Library</h1>
+        <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
           {library
             ? `${library.designs.length} designs and ${library.components.length} catalogue components`
             : error
@@ -107,7 +107,7 @@ export function LibrarySpace() {
       {library && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <section aria-label="Designs" className="flex flex-col gap-2">
-            <h2 className="text-sm font-semibold">Designs</h2>
+            <h2 className="text-base font-semibold">Designs</h2>
             <ul className="flex flex-col gap-2">
               {library.designs.map((d, i) => {
                 const selected = d.id === openId;
@@ -125,7 +125,9 @@ export function LibrarySpace() {
                       }}
                     >
                       <span className="flex items-baseline justify-between gap-3">
-                        <span className="font-semibold">{d.name}</span>
+                        <span className="text-base font-semibold">
+                          {d.name}
+                        </span>
                         <span
                           className="text-xs"
                           style={{ color: 'var(--ink-meta)' }}
@@ -175,7 +177,7 @@ export function LibrarySpace() {
                 className="ws-enter rounded-lg p-4 text-sm"
                 style={surface}
               >
-                <h2 className="font-semibold">{open.name}</h2>
+                <h2 className="text-base font-semibold">{open.name}</h2>
                 <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
                   {open.attribution}
                 </p>
@@ -223,7 +225,7 @@ export function LibrarySpace() {
               className="ws-enter rounded-lg p-4 text-sm"
               style={surface}
             >
-              <h2 className="font-semibold">Catalogue components</h2>
+              <h2 className="text-base font-semibold">Catalogue components</h2>
               <ul className="mt-2 flex flex-col gap-2">
                 {library.components.map((c) => (
                   <li key={c.id}>
