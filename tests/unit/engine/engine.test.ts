@@ -67,22 +67,26 @@ function routedModel() {
             ? 'check_printable_size'
             : system.includes('coverage')
               ? 'materials'
-              : 'check_parameter_limits';
+              : system.includes('Shape')
+                ? 'cadam_snapshot'
+                : 'check_parameter_limits';
           const input =
             toolName === 'materials'
               ? { materialId: 'pla' }
-              : {
-                  designId: 'tweezers',
-                  values: { length: 120 },
-                  specification: { id: 's', requirements: ['r'] },
-                  mesh: {
-                    triangles: 1,
-                    min: [0, 0, 0],
-                    max: [1, 1, 1],
-                    size: [1, 1, 1],
-                    openEdges: 0,
-                  },
-                };
+              : toolName === 'cadam_snapshot'
+                ? { designId: 'tweezers', values: { length: 120 } }
+                : {
+                    designId: 'tweezers',
+                    values: { length: 120 },
+                    specification: { id: 's', requirements: ['r'] },
+                    mesh: {
+                      triangles: 1,
+                      min: [0, 0, 0],
+                      max: [1, 1, 1],
+                      size: [1, 1, 1],
+                      openEdges: 0,
+                    },
+                  };
           return {
             content: [
               {

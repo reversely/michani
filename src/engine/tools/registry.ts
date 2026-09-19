@@ -1,4 +1,5 @@
 import { tool, type Tool } from 'ai';
+import type { ToolResultOutput } from '@ai-sdk/provider-utils';
 import { z } from 'zod';
 
 // The engine's tool registry (issue #12). Every capability an agent may use is a named tool
@@ -11,6 +12,9 @@ export type EngineTool<I extends z.ZodTypeAny = z.ZodTypeAny, O = unknown> = {
   description: string;
   input: I;
   run: (input: z.infer<I>) => Promise<O> | O;
+  // How the result reaches the model when it is not plain JSON: a snapshot tool returns
+  // image parts, for example. Absent means the JSON result.
+  toModelOutput?: (output: O) => ToolResultOutput;
 };
 
 const registry = new Map<string, EngineTool>();
@@ -54,6 +58,9 @@ export function toolSet(names: string[]): Record<string, Tool> {
       description: t.description,
       inputSchema: t.input,
       execute: async (input: unknown) => t.run(t.input.parse(input)),
+      ...(t.toModelOutput
+        ? { toModelOutput: ({ output }) => t.toModelOutput!(output) }
+        : {}),
     });
   }
   return out;

@@ -21,6 +21,7 @@ const benchSpec = {
 
 function scenario(failFirst: boolean) {
   const generationPrompts: string[] = [];
+  const viewParts: string[] = [];
   let verdictCalls = 0;
   const model = new MockLanguageModelV3({
     doGenerate: async (options) => {
@@ -39,18 +40,21 @@ function scenario(failFirst: boolean) {
           componentMatches: [],
         };
       else if (system.includes('agentic AI CAD editor')) {
-        generationPrompts.push(user);
-        body = { title: 'Bench', version: 'v1', code: CODE };
-      } else if (system.includes('verification agent')) {
-        const hasToolResult = options.prompt.some((m) => m.role === 'tool');
-        if (!hasToolResult) {
+        // The tool loop (#25): build once, receive the views, then stop with a sentence.
+        const toolMsg = options.prompt.find((m) => m.role === 'tool');
+        if (!toolMsg) {
+          generationPrompts.push(user);
           return {
             content: [
               {
                 type: 'tool-call' as const,
-                toolCallId: `c-${verdictCalls++}`,
-                toolName: 'materials',
-                input: JSON.stringify({ materialId: 'petg' }),
+                toolCallId: `b-${generationPrompts.length}`,
+                toolName: 'build_parametric_model',
+                input: JSON.stringify({
+                  title: 'Bench',
+                  version: 'v1',
+                  code: CODE,
+                }),
               },
             ],
             finishReason: { unified: 'tool-calls' as const, raw: 'tool_use' },
@@ -58,28 +62,64 @@ function scenario(failFirst: boolean) {
             warnings: [],
           };
         }
-        // Geometry fails on the first attempt only when asked to.
-        const isGeometry = system.includes('Geometry');
+        viewParts.push(JSON.stringify(toolMsg.content));
+        body = 'Built the bench.';
+      } else if (system.includes('verification agent')) {
+        const hasToolResult = options.prompt.some((m) => m.role === 'tool');
+        if (!hasToolResult) {
+          const isShape = system.includes('Shape');
+          const ctx = JSON.parse(
+            (
+              options.prompt.find((m) => m.role === 'user')!.content[0] as {
+                text: string;
+              }
+            ).text.replace(/<\/?context>/g, ''),
+          ) as { designId: string; values: Record<string, number> };
+          return {
+            content: [
+              {
+                type: 'tool-call' as const,
+                toolCallId: `c-${verdictCalls++}`,
+                toolName: isShape ? 'cadam_snapshot' : 'materials',
+                input: JSON.stringify(
+                  isShape
+                    ? { designId: ctx.designId, values: ctx.values }
+                    : { materialId: 'petg' },
+                ),
+              },
+            ],
+            finishReason: { unified: 'tool-calls' as const, raw: 'tool_use' },
+            usage,
+            warnings: [],
+          };
+        }
+        // Shape fails on the first attempt only when asked to.
+        const isShape = system.includes('Shape');
         const firstAttempt = generationPrompts.length === 1;
         body =
-          isGeometry && failFirst && firstAttempt
+          isShape && failFirst && firstAttempt
             ? {
                 result: 'fail',
-                finding: 'Mesh height 774 mm disagrees with the stated 450 mm.',
-                suggestedRevision:
-                  'Set seat_height so the overall height is 450 mm.',
+                finding:
+                  'Both views show a plain box; there is no seat, no legs, and no slats.',
+                suggestedRevision: 'Model a seat slab on four legs.',
               }
             : { result: 'pass', finding: 'ok' };
       } else body = {};
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(body) }],
+        content: [
+          {
+            type: 'text' as const,
+            text: typeof body === 'string' ? body : JSON.stringify(body),
+          },
+        ],
         finishReason: { unified: 'stop' as const, raw: 'stop' },
         usage,
         warnings: [],
       };
     },
   });
-  return { model, generationPrompts };
+  return { model, generationPrompts, viewParts };
 }
 
 describe('generation retries (#16)', () => {
@@ -97,12 +137,12 @@ describe('generation retries (#16)', () => {
     expect(e.attempts).toHaveLength(2);
     expect(generationPrompts).toHaveLength(2);
     expect(generationPrompts[1]).toMatch(/<feedback>/);
-    expect(generationPrompts[1]).toMatch(/disagrees with the stated 450 mm/);
+    expect(generationPrompts[1]).toMatch(/plain box/);
     expect(generationPrompts[0]).not.toMatch(/<feedback>/);
   }, 60_000);
 
   it('passes in one attempt when no verdict fails', async () => {
-    const { model, generationPrompts } = scenario(false);
+    const { model, generationPrompts, viewParts } = scenario(false);
     const engine = createEngine(model);
     let r = await engine.turn(
       engine.start(),
@@ -111,6 +151,15 @@ describe('generation retries (#16)', () => {
     r = await engine.turn(r.session, 'yes');
     expect((r.session.execution as Execution).attempts).toHaveLength(1);
     expect(generationPrompts).toHaveLength(1);
+    // The model saw two image parts after its build (#25).
+    expect(viewParts).toHaveLength(1);
+    expect((viewParts[0].match(/"mediaType":"image\/png"/g) ?? []).length).toBe(
+      2,
+    );
+    const shape = (
+      r.session.execution as Execution
+    ).verification?.verdicts.find((v) => v.agentId === 'shape');
+    expect(shape?.evidence[0]?.tool).toBe('cadam_snapshot');
   }, 60_000);
 
   it('the feedback block strips its own delimiters from verdict text', () => {

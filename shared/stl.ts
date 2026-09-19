@@ -12,8 +12,13 @@ export type StlSummary = {
   openEdges: number;
 };
 
+// The triangles themselves, for the snapshot rasteriser.
+export function readStlTriangles(bytes: Uint8Array): Vec3[][] {
+  return looksAscii(bytes) ? parseAscii(bytes) : parseBinary(bytes);
+}
+
 export function readStl(bytes: Uint8Array): StlSummary {
-  const tris = looksAscii(bytes) ? parseAscii(bytes) : parseBinary(bytes);
+  const tris = readStlTriangles(bytes);
   const min: Vec3 = [Infinity, Infinity, Infinity];
   const max: Vec3 = [-Infinity, -Infinity, -Infinity];
   const edgeCount = new Map<string, number>();

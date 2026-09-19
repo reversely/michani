@@ -6,45 +6,29 @@ The programme exists for people who have a printer and no design file: field eng
 
 ## The flow
 
-Each part is one session. The session moves through six states in order, and the state machine in `src/engine/session.ts` refuses any transition an agent has not earned.
+Every part goes through the same three steps: requirements, build, verification. The session state machine in `src/engine/session.ts` runs them in order and refuses any transition an agent has not earned.
 
-### Workspace
+### 1. Requirements
 
-Sessions are grouped by state. In progress, ready, and needs attention each list their parts, and the sidebar keeps the ones opened most recently.
+The requirements agent turns the conversation into a specification: the part, its dimensions in millimetres, the material, the hardware it fits, the load, and the environment. Size and material are the two facts it asks for until it has them. From the specification it writes a plan that names a library design to adapt or, when none matches, generation of new code, plus the risk label and the checks that will run. The person confirms the plan, and nothing is built before that.
 
-![Workspace with three parts grouped by state](docs/screenshots/1-workspace.png)
+![Specification and plan for tweezers, awaiting confirmation](docs/screenshots/1-requirements.png)
 
-### Gathering
+### 2. Build
 
-The requirements agent reads the request and asks for what a specification still lacks. Size and material are the two questions that hold a session in this state. Purpose, hardware, load, environment, and contact fill in from whatever the person says.
+Adaptation sets the declared parameters of a library design and writes no geometry. Generation writes new OpenSCAD from the specification and the plan. Either way the OpenSCAD source renders in the browser, each declared parameter appears as a slider limited to its declared range, and the mesh exports as STL, SCAD, or DXF.
 
-![First question after the request "bench"](docs/screenshots/2-gathering-question.png)
+![A rendered part with its parameters as sliders and an STL export](docs/screenshots/2-build.png)
 
-Each answer updates the specification on the right, and the agent asks its next question.
+### 3. Verification
 
-![Specification filling in after a second answer](docs/screenshots/3-gathering-specification.png)
+Every build passes through the registered checks before it reaches the person. Each check returns pass, warn, fail, or did not run with its reason, and the report quotes the evidence. Here the tweezers pass parameter limits, mesh validity, and printable size, and requirement coverage warns where a parameter name does not map to a stated requirement.
 
-When the request names something too large or too load-bearing to print, the agent says so and proposes printable components of it.
+![Check report for the tweezers: three passes, one warning, two checks not applicable to class A](docs/screenshots/3-verification-pass.png)
 
-![The agent proposing rung caps, feet, or brackets for a ladder](docs/screenshots/4-scope.png)
+A failed verdict goes back to the build step with its finding, up to three times. A generated stool fails here twice over: the mesh has open edges, and its largest dimension exceeds a 200 mm bed. The plan carries the risk label "needs expert review" because the part bears a person's weight.
 
-### Plan
-
-With the specification complete, the engine chooses a library design or, when none matches, generation of new code. The plan states the design, the risk label, and the checks that will run. The person confirms it or says what to change. Nothing is drafted before that confirmation.
-
-![Plan to adapt the tweezers design, awaiting confirmation](docs/screenshots/5-plan.png)
-
-### Execution and result
-
-Adaptation sets the declared parameters of a library design and writes no geometry. Generation writes new OpenSCAD from the specification. The renderer builds the mesh, and the verification agents judge it. A failed verdict goes back to drafting with its finding, up to three times.
-
-![Result for the tweezers: geometry pass, coverage pass, printability warn](docs/screenshots/6-result.png)
-
-### Reopening
-
-A session keeps its transcript, specification, and result, and reopens from the sidebar in the state it reached.
-
-![A session reopened from the sidebar](docs/screenshots/7-reopened.png)
+![Check report for a generated stool: mesh validity fails, printable size warns](docs/screenshots/3-verification-fail.png)
 
 ## The library
 

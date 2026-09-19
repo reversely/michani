@@ -9,7 +9,8 @@ const shot = (name: string) =>
   `docs/progress/${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-workspace-${name}.png`;
 
 // Three fixture parts written straight into the store the dev server reads, so the test
-// never depends on a live model run: one gathering, one that passed, one that failed.
+// never depends on a live model run: one gathering, one that passed, one that failed. Their
+// titles say fixture and their geometry is a bare cube; no agent ever inspected them.
 const STORE = path.resolve(
   process.env.MICHANI_SESSION_DIR ?? '.michani/sessions',
 );
@@ -91,16 +92,20 @@ const fixture = (id: string, summary: string, state: string, ok?: boolean) => ({
 test.beforeAll(() => {
   mkdirSync(STORE, { recursive: true });
   const rows = [
-    fixture('11111111-1111-4111-8111-111111111111', 'Pen tray', 'gathering'),
+    fixture(
+      '11111111-1111-4111-8111-111111111111',
+      'Fixture: pen tray',
+      'gathering',
+    ),
     fixture(
       '22222222-2222-4222-8222-222222222222',
-      'Cable clip',
+      'Fixture: cable clip',
       'executed',
       true,
     ),
     fixture(
       '33333333-3333-4333-8333-333333333333',
-      'Shelf bracket',
+      'Fixture: shelf bracket',
       'executed',
       false,
     ),
