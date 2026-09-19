@@ -1,0 +1,30 @@
+# Mechanical, deterministic checks only. Judgment calls (data-structure fit, module boundaries,
+# whether a complex change explains itself) aren't enforceable here; see the clean-code skill.
+#
+# Application code is TypeScript (CADAM fork). Python exists here only to host pre-commit and
+# detect-secrets through uv. Add language-specific lint hooks when the app code arrives.
+#
+# Setup in a new repo:
+#   uv add --dev pre-commit detect-secrets
+#   uv run pre-commit install
+#   uv run detect-secrets scan > .secrets.baseline
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: check-json
+      - id: detect-private-key
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
