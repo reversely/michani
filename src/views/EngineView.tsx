@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { apiUrl } from '@/services/api';
 import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
 import type { Parameter } from '@shared/types';
+import { LibrarySpace } from '@/views/LibrarySpace';
 import '@/engine-ui/tokens.css';
 
 // The workspace (issues #17, #20, #21): a sidebar that keeps sessions, the conversation in
@@ -164,6 +165,19 @@ function sizeText(s: EngineSession['specification']): string {
   return s.dimensions.map((d) => `${d.name} ${d.value} ${d.unit}`).join(', ');
 }
 
+function readView(): 'home' | 'part' | 'library' {
+  if (typeof window === 'undefined') return 'home';
+  const q = new URLSearchParams(window.location.search);
+  if (q.get('view') === 'library') return 'library';
+  return q.get('part') ? 'part' : 'home';
+}
+
+function readPart(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const id = new URLSearchParams(window.location.search).get('part');
+  return id && z.string().uuid().safeParse(id).success ? id : undefined;
+}
+
 function dayLabel(iso: string): string {
   const d = new Date(iso);
   const start = (x: Date) =>
@@ -198,7 +212,11 @@ export function EngineView() {
   const [elapsed, setElapsed] = useState<number>();
   const [railOpen, setRailOpen] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
-  const [view, setView] = useState<'home' | 'part'>('home');
+  // The view and the open part live in the address bar too, so a space or a part can be
+  // reopened or linked to: ?view=library, ?part=<id>.
+  const [view, setView] = useState<'home' | 'part' | 'library'>(() =>
+    readView(),
+  );
   const [space, setSpace] = useState<SpaceId>('progress');
   const [renaming, setRenaming] = useState<string>();
   const endRef = useRef<HTMLDivElement>(null);
@@ -233,6 +251,14 @@ export function EngineView() {
   }, [refreshSessions]);
 
   useEffect(() => {
+    const url = new URL(window.location.href);
+    url.search = '';
+    if (view === 'library') url.searchParams.set('view', 'library');
+    if (view === 'part' && session) url.searchParams.set('part', sessionId);
+    window.history.replaceState(null, '', url);
+  }, [view, session, sessionId]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [session?.transcript.length, busy]);
 
@@ -251,6 +277,11 @@ export function EngineView() {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
+
+  useEffect(() => {
+    const id = readPart();
+    if (id) void openSession(id);
+  }, [openSession]);
 
   const newSession = useCallback(() => {
     setSession(undefined);
@@ -575,13 +606,22 @@ export function EngineView() {
           className="flex flex-col gap-2 border-t pt-3 text-sm"
           style={{ borderColor: 'var(--line)' }}
         >
-          <a
-            href={apiUrl('library')}
-            className="ws-press rounded-md px-3 py-2"
-            style={{ color: 'var(--ink-dim)' }}
+          <button
+            type="button"
+            onClick={() => {
+              setView('library');
+              setNavOpen(false);
+            }}
+            aria-current={view === 'library' ? 'page' : undefined}
+            className="ws-press rounded-md px-3 py-2 text-left"
+            style={{
+              background:
+                view === 'library' ? 'var(--surface-2)' : 'transparent',
+              color: 'var(--ink-dim)',
+            }}
           >
-            Library (5 designs)
-          </a>
+            Library
+          </button>
           <div className="flex items-center justify-between px-3 py-1">
             <span style={{ color: 'var(--ink-dim)' }}>Theme</span>
             <div
@@ -618,7 +658,9 @@ export function EngineView() {
         />
       )}
 
-      {view === 'home' ? (
+      {view === 'library' ? (
+        <LibrarySpace />
+      ) : view === 'home' ? (
         <main
           aria-label="Overview"
           className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-14 lg:px-8 lg:pt-6"

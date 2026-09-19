@@ -203,3 +203,20 @@ test('the sidebar is a drawer below 1024 px', async ({ page }) => {
   await page.waitForTimeout(400);
   await page.screenshot({ path: shot('phone-drawer'), fullPage: false });
 });
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`library space in ${theme} lists designs and opens one`, async ({
+    page,
+  }) => {
+    await page.goto('engine');
+    await page.getByRole('button', { name: theme, exact: true }).click();
+    await page.getByRole('button', { name: 'Library', exact: true }).click();
+    const designs = page.getByRole('region', { name: 'Designs' }).locator('li');
+    await expect(designs.first()).toBeVisible({ timeout: 15_000 });
+    expect(await designs.count()).toBeGreaterThanOrEqual(5);
+    await designs.first().locator('button').click();
+    await expect(page.getByRole('table')).toBeVisible();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: shot(`${theme}-4-library`), fullPage: true });
+  });
+}
