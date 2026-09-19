@@ -119,6 +119,40 @@ describe('verification agents (#14)', () => {
     expect(v.finding).toMatch(/No tool evidence/);
   });
 
+  it('an agent that spends its budget on tool calls returns a warning, not a throw (#28)', async () => {
+    const agent = agentsFor('A').find((a) => a.id === 'printability')!;
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => ({
+        content: [
+          {
+            type: 'tool-call' as const,
+            toolCallId: `call-${Math.random()}`,
+            toolName: 'materials',
+            input: JSON.stringify({ materialId: 'pla' }),
+          },
+        ],
+        finishReason: { unified: 'tool-calls' as const, raw: 'tool_use' },
+        usage,
+        warnings: [],
+      }),
+    });
+    const v = await runVerificationAgent(agent, ctx, model);
+    expect(v.result).toBe('warn');
+    expect(v.finding).toMatch(/no usable verdict/);
+    expect(v.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('a verdict written as JSON text is used when the structured answer is absent (#28)', async () => {
+    const agent = agentsFor('A').find((a) => a.id === 'printability')!;
+    const model = toolThenVerdict(
+      'materials',
+      { materialId: 'pla' },
+      { result: 'fail', finding: 'Wall 0.8 mm is under the 1.2 mm minimum.' },
+    );
+    const v = await runVerificationAgent(agent, ctx, model);
+    expect(v.result).toBe('fail');
+  });
+
   it('runs every agent for the class and lists the rest as did not run', async () => {
     const model = toolThenVerdict(
       'check_printable_size',
