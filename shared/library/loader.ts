@@ -6,7 +6,9 @@ import {
   componentRecordSchema,
   designEntrySchema,
   evidenceLevelSchema,
+  materialSchema,
   type AttributeDefinition,
+  type Material,
   type ComponentRecord,
   type DesignEntry,
 } from '../schemas/library';
@@ -14,6 +16,7 @@ import {
 export type LibraryIndex = {
   attributes: AttributeDefinition[];
   evidenceLevels: string[];
+  materials: Material[];
   designs: Array<DesignEntry & { scad: string }>;
   components: ComponentRecord[];
   nopscadlibModules: string[];
@@ -48,6 +51,16 @@ export function loadLibrary(root = 'library'): LibraryIndex {
     'evidence-levels.json',
     problems,
   );
+
+  const materialsPath = join(root, 'materials.json');
+  const materials = existsSync(materialsPath)
+    ? parseList(
+        readJson(materialsPath),
+        materialSchema,
+        'materials.json',
+        problems,
+      )
+    : [];
 
   const modulesPath = join(root, 'nopscadlib-modules.json');
   const nopscadlibModules = existsSync(modulesPath)
@@ -111,7 +124,14 @@ export function loadLibrary(root = 'library'): LibraryIndex {
   }
 
   if (problems.length > 0) throw new LibraryLoadError(problems);
-  return { attributes, evidenceLevels, designs, components, nopscadlibModules };
+  return {
+    attributes,
+    evidenceLevels,
+    materials,
+    designs,
+    components,
+    nopscadlibModules,
+  };
 }
 
 // The Customizer parser is what the sliders and the drafting agent see, so the metadata must

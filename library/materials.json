@@ -1,0 +1,57 @@
+[
+  {
+    "id": "pla",
+    "name": "PLA",
+    "defaultClearanceMm": 0.3,
+    "minWallMm": 1.2,
+    "waterContact": false,
+    "foodContact": false,
+    "outdoor": false,
+    "maxServiceTempC": 50,
+    "notes": "Stiff, easy to print, softens in a hot car or sun."
+  },
+  {
+    "id": "petg",
+    "name": "PETG",
+    "defaultClearanceMm": 0.35,
+    "minWallMm": 1.2,
+    "waterContact": true,
+    "foodContact": false,
+    "outdoor": true,
+    "maxServiceTempC": 70,
+    "notes": "Tougher than PLA, tolerates water and weather."
+  },
+  {
+    "id": "abs",
+    "name": "ABS",
+    "defaultClearanceMm": 0.4,
+    "minWallMm": 1.6,
+    "waterContact": true,
+    "foodContact": false,
+    "outdoor": true,
+    "maxServiceTempC": 90,
+    "notes": "Heat tolerant, warps on open printers."
+  },
+  {
+    "id": "tpu",
+    "name": "TPU",
+    "defaultClearanceMm": 0.2,
+    "minWallMm": 1.0,
+    "waterContact": true,
+    "foodContact": false,
+    "outdoor": true,
+    "maxServiceTempC": 60,
+    "notes": "Flexible; press fits need less clearance."
+  },
+  {
+    "id": "nylon",
+    "name": "Nylon",
+    "defaultClearanceMm": 0.4,
+    "minWallMm": 1.2,
+    "waterContact": true,
+    "foodContact": false,
+    "outdoor": true,
+    "maxServiceTempC": 100,
+    "notes": "Strong and slippery, absorbs moisture."
+  }
+]

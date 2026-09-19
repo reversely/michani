@@ -139,13 +139,55 @@ export const partMeasurementSchema = z
   .strict();
 export type PartMeasurement = z.infer<typeof partMeasurementSchema>;
 
+export const materialSchema = z
+  .object({
+    id,
+    name: z.string().min(1),
+    defaultClearanceMm: z.number(),
+    minWallMm: z.number(),
+    waterContact: z.boolean(),
+    foodContact: z.boolean(),
+    outdoor: z.boolean(),
+    maxServiceTempC: z.number(),
+    notes: z.string(),
+  })
+  .strict();
+export type Material = z.infer<typeof materialSchema>;
+
+// A dimension the person stated before any design was chosen, in the person's own words.
+export const statedDimensionSchema = z
+  .object({
+    name: z.string().min(1),
+    value: z.number(),
+    unit: z.string().min(1),
+  })
+  .strict();
+
+export const contactClassSchema = z.enum([
+  'none',
+  'skin',
+  'food',
+  'drinking-water',
+  'medical',
+]);
+
+// The Specification fills in across conversational turns. The fields below `requirements`
+// are optional in the record so a partial one can be stored; the engine's completeness
+// check (src/engine/session.ts) decides which must be present before a plan exists.
 export const specificationSchema = z
   .object({
     id,
-    requirements: z.array(z.string().min(1)).min(1),
-    components: z.array(componentRecordSchema),
+    requirements: z.array(z.string().min(1)).default([]),
+    purpose: z.string().min(1).optional(),
+    dimensions: z.array(statedDimensionSchema).default([]),
+    material: id.optional(),
+    load: z.string().min(1).optional(),
+    environment: z.string().min(1).optional(),
+    contactClass: contactClassSchema.optional(),
+    hardware: z.enum(['none', 'listed']).optional(),
+    components: z.array(componentRecordSchema).default([]),
     partMeasurements: z.array(partMeasurementSchema).default([]),
-    printSettings: z.array(attributeValueSchema),
+    printSettings: z.array(attributeValueSchema).default([]),
   })
   .strict();
 export type Specification = z.infer<typeof specificationSchema>;
