@@ -37,6 +37,7 @@ import { Route as LayoutSplatRouteImport } from './routes/_layout/$';
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$';
 import { Route as ApiDemoRequirementsRouteImport } from './routes/api/demo/requirements';
 import { Route as ApiDemoLibraryRouteImport } from './routes/api/demo/library';
+import { Route as ApiDemoDraftRouteImport } from './routes/api/demo/draft';
 import { Route as ApiDemoConfirmPlanRouteImport } from './routes/api/demo/confirm-plan';
 import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id';
 import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings';
@@ -183,6 +184,11 @@ const ApiDemoLibraryRoute = ApiDemoLibraryRouteImport.update({
   path: '/api/demo/library',
   getParentRoute: () => rootRouteImport,
 } as any);
+const ApiDemoDraftRoute = ApiDemoDraftRouteImport.update({
+  id: '/api/demo/draft',
+  path: '/api/demo/draft',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ApiDemoConfirmPlanRoute = ApiDemoConfirmPlanRouteImport.update({
   id: '/api/demo/confirm-plan',
   path: '/api/demo/confirm-plan',
@@ -249,6 +255,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof LayoutAuthSettingsRoute;
   '/share/$id': typeof LayoutShareIdRoute;
   '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
@@ -284,6 +291,7 @@ export interface FileRoutesByTo {
   '/settings': typeof LayoutAuthSettingsRoute;
   '/share/$id': typeof LayoutShareIdRoute;
   '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
@@ -322,6 +330,7 @@ export interface FileRoutesById {
   '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute;
   '/_layout/share/$id': typeof LayoutShareIdRoute;
   '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/draft': typeof ApiDemoDraftRoute;
   '/api/demo/library': typeof ApiDemoLibraryRoute;
   '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
@@ -359,6 +368,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/share/$id'
     | '/api/demo/confirm-plan'
+    | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
@@ -394,6 +404,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/share/$id'
     | '/api/demo/confirm-plan'
+    | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
@@ -431,6 +442,7 @@ export interface FileRouteTypes {
     | '/_layout/_auth/settings'
     | '/_layout/share/$id'
     | '/api/demo/confirm-plan'
+    | '/api/demo/draft'
     | '/api/demo/library'
     | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
@@ -461,6 +473,7 @@ export interface RootRouteChildren {
   ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute;
   AssetsSplatRoute: typeof AssetsSplatRoute;
   ApiDemoConfirmPlanRoute: typeof ApiDemoConfirmPlanRoute;
+  ApiDemoDraftRoute: typeof ApiDemoDraftRoute;
   ApiDemoLibraryRoute: typeof ApiDemoLibraryRoute;
   ApiDemoRequirementsRoute: typeof ApiDemoRequirementsRoute;
   ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute;
@@ -665,6 +678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDemoLibraryRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    '/api/demo/draft': {
+      id: '/api/demo/draft';
+      path: '/api/demo/draft';
+      fullPath: '/api/demo/draft';
+      preLoaderRoute: typeof ApiDemoDraftRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/demo/confirm-plan': {
       id: '/api/demo/confirm-plan';
       path: '/api/demo/confirm-plan';
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTitleGeneratorRoute: ApiTitleGeneratorRoute,
   AssetsSplatRoute: AssetsSplatRoute,
   ApiDemoConfirmPlanRoute: ApiDemoConfirmPlanRoute,
+  ApiDemoDraftRoute: ApiDemoDraftRoute,
   ApiDemoLibraryRoute: ApiDemoLibraryRoute,
   ApiDemoRequirementsRoute: ApiDemoRequirementsRoute,
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,

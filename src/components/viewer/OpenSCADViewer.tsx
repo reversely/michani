@@ -1,3 +1,4 @@
+import type { Parameter } from '@shared/types';
 import { useOpenSCAD } from '@/hooks/useOpenSCAD';
 import { useCallback, useEffect, useState, useContext, useRef } from 'react';
 import { ThreeScene } from '@/components/viewer/ThreeScene';
@@ -37,6 +38,8 @@ function parseHexColor(hex: string): number {
 
 interface OpenSCADPreviewProps {
   scadCode: string | null;
+  // Validated -D overrides. When set, the source renders unchanged with these values applied.
+  params?: Parameter[];
   color: string;
   onOutputChange?: (output: Blob | undefined) => void;
   onDxfExportChange?: (exporter: DxfExporter | null) => void;
@@ -47,6 +50,7 @@ interface OpenSCADPreviewProps {
 
 export function OpenSCADPreview({
   scadCode,
+  params,
   color,
   onOutputChange,
   onDxfExportChange,
@@ -118,14 +122,14 @@ export function OpenSCADPreview({
     const compileWithMeshFiles = async () => {
       try {
         await prepareMeshFiles(scadCode);
-        compileScad(scadCode);
+        compileScad(scadCode, params ?? []);
       } catch (err) {
         console.error('[OpenSCAD] Error preparing files for compilation:', err);
       }
     };
 
     compileWithMeshFiles();
-  }, [scadCode, compileScad, prepareMeshFiles]);
+  }, [scadCode, params, compileScad, prepareMeshFiles]);
 
   // Register a parent-owned DXF exporter for the current SCAD code. The export
   // runs only when the user chooses DXF from the download menu.

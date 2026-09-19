@@ -1,0 +1,34 @@
+{
+  "specification": {
+    "id": "spec-d4",
+    "requirements": ["The tweezers are 200 mm long."],
+    "components": [],
+    "partMeasurements": [
+      { "parameterId": "length", "value": 200, "source": "user" }
+    ],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "responses": [
+    {
+      "values": [
+        { "parameterId": "length", "value": 200 },
+        { "parameterId": "tip-width", "value": 4 },
+        { "parameterId": "arm-thickness", "value": 2 },
+        { "parameterId": "arm-gap", "value": 10 },
+        { "parameterId": "arm-width", "value": 12 }
+      ]
+    },
+    {
+      "values": [
+        { "parameterId": "length", "value": 160 },
+        { "parameterId": "tip-width", "value": 4 },
+        { "parameterId": "arm-thickness", "value": 2 },
+        { "parameterId": "arm-gap", "value": 10 },
+        { "parameterId": "arm-width", "value": 12 }
+      ],
+      "notes": "200 mm exceeds the 160 mm limit; used the limit."
+    }
+  ]
+}

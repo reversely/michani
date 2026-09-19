@@ -1,0 +1,17 @@
+{
+  "specification": {
+    "id": "spec-d6",
+    "requirements": ["Tweezers 100 mm."],
+    "components": [],
+    "partMeasurements": [
+      { "parameterId": "length", "value": 100, "source": "user" }
+    ],
+    "printSettings": []
+  },
+  "response": {
+    "values": [
+      { "parameterId": "length", "value": 100 },
+      { "parameterId": "handle_colour", "value": 1 }
+    ]
+  }
+}

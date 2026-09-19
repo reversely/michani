@@ -6,6 +6,8 @@ import { apiJson } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MeasurementsPanel } from '@/components/demo/MeasurementsPanel';
+import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
+import type { Parameter } from '@shared/types';
 import {
   attributeDefinitionSchema,
   planSchema,
@@ -75,6 +77,40 @@ const libraryStepResponse = z.object({
 });
 type LibraryStep = z.infer<typeof libraryStepResponse>['result'];
 
+const parameterSchema = z.object({
+  name: z.string(),
+  displayName: z.string(),
+  value: z.number(),
+  defaultValue: z.number(),
+  type: z.literal('number'),
+});
+const attemptSchema = z.object({
+  attempt: z.number(),
+  proposed: z.record(z.number()),
+  violations: z.array(
+    z.object({ name: z.string(), reason: z.string(), detail: z.string() }),
+  ),
+  notes: z.string().optional(),
+  elapsedMs: z.number(),
+});
+const draftResponse = z.object({
+  outcome: z.discriminatedUnion('ok', [
+    z.object({
+      ok: z.literal(true),
+      params: z.array(parameterSchema),
+      values: z.record(z.number()),
+      attempts: z.array(attemptSchema),
+    }),
+    z.object({
+      ok: z.literal(false),
+      attempts: z.array(attemptSchema),
+      message: z.string(),
+    }),
+  ]),
+  scad: z.string(),
+});
+type DraftStep = z.infer<typeof draftResponse>;
+
 export function DemoView() {
   const { user } = useAuth();
   const [attributes, setAttributes] = useState<AttributeDefinition[]>([]);
@@ -87,8 +123,9 @@ export function DemoView() {
   const [specification, setSpecification] = useState<Specification>();
   const [plan, setPlan] = useState<Plan>();
   const [library, setLibrary] = useState<LibraryStep>();
+  const [draft, setDraft] = useState<DraftStep>();
   const [busy, setBusy] = useState<
-    'requirements' | 'library' | 'confirm' | null
+    'requirements' | 'library' | 'confirm' | 'draft' | null
   >(null);
   const [error, setError] = useState<string>();
   const [elapsedMs, setElapsedMs] = useState<number>();
@@ -132,6 +169,7 @@ export function DemoView() {
       );
       setElapsedMs(r.elapsedMs);
       setLibrary(undefined);
+      setDraft(undefined);
       if (r.result.kind === 'question') {
         setQuestion(r.result);
         setSpecification(undefined);
@@ -161,6 +199,25 @@ export function DemoView() {
       );
       setLibrary(r.result);
       setPlan(r.plan);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [conversationId]);
+
+  const runDraft = useCallback(async () => {
+    if (!conversationId) return;
+    setBusy('draft');
+    setError(undefined);
+    try {
+      const r = draftResponse.parse(
+        await apiJson('demo/draft', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId }),
+        }),
+      );
+      setDraft(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -306,6 +363,63 @@ export function DemoView() {
           onConfirm={() => void confirmPlan()}
           confirming={busy === 'confirm'}
         />
+      )}
+      {plan?.confirmed && plan.function === 'adaptation' && (
+        <section
+          aria-label="Drafting and render"
+          className="flex flex-col gap-3 rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 p-4 sm:p-6"
+        >
+          <h2 className="text-base font-semibold">Draft and render</h2>
+          {!draft && (
+            <Button
+              type="button"
+              onClick={() => void runDraft()}
+              disabled={busy !== null}
+              className="w-full sm:w-auto"
+            >
+              {busy === 'draft'
+                ? 'Drafting parameter values'
+                : 'Draft parameter values'}
+            </Button>
+          )}
+          {draft && (
+            <ol className="flex flex-col gap-1 text-sm">
+              {draft.outcome.attempts.map((a) => (
+                <li key={a.attempt}>
+                  Attempt {a.attempt} ({(a.elapsedMs / 1000).toFixed(1)} s):{' '}
+                  {a.violations.length === 0
+                    ? 'accepted'
+                    : a.violations.map((v) => v.detail).join('; ')}
+                  {a.notes ? ` Notes: ${a.notes}` : ''}
+                </li>
+              ))}
+            </ol>
+          )}
+          {draft && !draft.outcome.ok && (
+            <p className="text-sm text-red-400" role="alert">
+              {draft.outcome.message}
+            </p>
+          )}
+          {draft?.outcome.ok && (
+            <>
+              <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[12rem_1fr]">
+                {Object.entries(draft.outcome.values).map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-adam-neutral-300">{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="h-[420px] w-full overflow-hidden rounded-md border border-adam-neutral-700">
+                <OpenSCADPreview
+                  scadCode={draft.scad}
+                  params={draft.outcome.params as Parameter[]}
+                  color="#4682B4"
+                />
+              </div>
+            </>
+          )}
+        </section>
       )}
     </main>
   );

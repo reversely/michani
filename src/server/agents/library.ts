@@ -10,6 +10,7 @@ import {
   type Specification,
 } from '@shared/schemas/library';
 import { CHECKS_BY_CLASS } from './requirements';
+import { tolerantToolSchema, unwrapSerialisedField } from './output';
 
 // Library agent (PRD R4, R5, R15). Ranks the library index against a Specification and
 // returns up to three candidates with reasons, or a no-match result. It also matches each
@@ -67,24 +68,11 @@ export const libraryOutputSchema = z
   })
   .strict();
 
-// The schema handed to the model: identical, except candidates may arrive as a string, which
-// is the one malformed shape seen live (the whole answer serialised into that field). The SDK
-// validates against this looser schema; finaliseLibrary then unwraps and parses strictly.
-const libraryToolSchema = libraryOutputSchema.extend({
-  matched: z.boolean().optional(),
-  candidates: z
-    .union([
-      z
-        .array(
-          z
-            .object({ designId: z.string(), reason: z.string().min(1) })
-            .strict(),
-        )
-        .max(3),
-      z.string(),
-    ])
-    .optional(),
-});
+const libraryToolSchema = tolerantToolSchema(
+  libraryOutputSchema,
+  'candidates',
+  ['matched'],
+);
 
 export type Candidate = {
   designId: string;
@@ -172,7 +160,9 @@ export function finaliseLibrary(
   output: unknown,
   input: Omit<LibraryInput, 'model'>,
 ): LibraryResult {
-  const parsed = libraryOutputSchema.parse(unwrapNestedAnswer(output));
+  const parsed = libraryOutputSchema.parse(
+    unwrapSerialisedField(output, 'candidates'),
+  );
   const candidateList = parsed.candidates ?? [];
   const byId = new Map(input.index.map((d) => [d.id, d]));
   for (const c of candidateList) {
@@ -219,26 +209,6 @@ export function finaliseLibrary(
       : undefined;
 
   return { kind: 'candidates', candidates, componentsWithoutGeometry, stop };
-}
-
-// Seen live: with an empty list, the model once returned the entire answer as a JSON string
-// inside the candidates field. Unwrap that one shape; anything else fails validation as usual.
-function unwrapNestedAnswer(output: unknown): unknown {
-  if (!output || typeof output !== 'object' || !('candidates' in output))
-    return output;
-  const inner = (output as { candidates: unknown }).candidates;
-  if (typeof inner !== 'string') return output;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(inner);
-  } catch {
-    return output;
-  }
-  // Either the whole answer or just the candidate list was serialised into the field.
-  if (Array.isArray(parsed)) return { ...output, candidates: parsed };
-  if (parsed && typeof parsed === 'object' && 'matched' in parsed)
-    return parsed;
-  return output;
 }
 
 // After a no-match result, the plan changes to generation without another model call: the

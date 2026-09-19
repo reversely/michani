@@ -1,0 +1,26 @@
+{
+  "specification": {
+    "id": "spec-d1",
+    "requirements": ["The tweezers are 120 mm long.", "The tip is 3 mm wide."],
+    "components": [],
+    "partMeasurements": [
+      { "parameterId": "length", "value": 120, "source": "user" },
+      { "parameterId": "tip-width", "value": 3, "source": "user" },
+      { "parameterId": "arm-thickness", "value": 2, "source": "user" },
+      { "parameterId": "arm-gap", "value": 12, "source": "user" },
+      { "parameterId": "arm-width", "value": 14, "source": "user" }
+    ],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "response": {
+    "values": [
+      { "parameterId": "length", "value": 120 },
+      { "parameterId": "tip-width", "value": 3 },
+      { "parameterId": "arm-thickness", "value": 2 },
+      { "parameterId": "arm-gap", "value": 12 },
+      { "parameterId": "arm-width", "value": 14 }
+    ]
+  }
+}
