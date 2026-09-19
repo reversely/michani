@@ -170,7 +170,6 @@ npm install
 
 # Start Supabase
 npx supabase start
-npx supabase functions serve --no-verify-jwt
 
 # Start the development server
 npm run dev
@@ -308,7 +307,7 @@ Components and attributions:
 ---
 
 <div align="center">
-  
+
 **⭐ If you find CADAM useful, please consider giving it a star!**
 
 [![Stars](https://img.shields.io/github/stars/Adam-CAD/cadam?style=social&logo=github)](https://github.com/Adam-CAD/cadam/stargazers)
