@@ -1,0 +1,50 @@
+{
+  "turns": [
+    {
+      "user": "bench",
+      "response": {
+        "requirements": ["The part is a bench."],
+        "purpose": "A bench."
+      }
+    },
+    {
+      "user": "A garden bench for two adults to sit on, 1200 mm wide, 450 mm high, 400 mm deep.",
+      "response": {
+        "requirements": [
+          "The bench seats two adults.",
+          "The bench is 1200 mm wide, 450 mm high, and 400 mm deep."
+        ],
+        "purpose": "A garden bench seating two adults.",
+        "dimensions": [
+          { "name": "width", "value": 1200, "unit": "mm" },
+          { "name": "height", "value": 450, "unit": "mm" },
+          { "name": "depth", "value": 400, "unit": "mm" }
+        ],
+        "load": "Two seated adults.",
+        "environment": "Outdoors in a garden."
+      }
+    },
+    {
+      "user": "PETG, it fits nothing, it stays outside all year.",
+      "response": {
+        "requirements": [
+          "The bench seats two adults.",
+          "The bench is 1200 mm wide, 450 mm high, and 400 mm deep.",
+          "The bench is printed in PETG.",
+          "The bench stays outdoors all year."
+        ],
+        "purpose": "A garden bench seating two adults.",
+        "dimensions": [
+          { "name": "width", "value": 1200, "unit": "mm" },
+          { "name": "height", "value": 450, "unit": "mm" },
+          { "name": "depth", "value": 400, "unit": "mm" }
+        ],
+        "material": "petg",
+        "hardware": "none",
+        "load": "Two seated adults.",
+        "environment": "Outdoors all year.",
+        "contactClass": "skin"
+      }
+    }
+  ]
+}
