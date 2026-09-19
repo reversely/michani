@@ -188,9 +188,15 @@ export async function runGeneration(
   });
   const ok = report.failed.length === 0;
   let saved = false;
+  let saveNote = '';
   if (ok && input.save) {
-    await input.save(design, artifact.code, input.conversationId);
-    saved = true;
+    try {
+      await input.save(design, artifact.code, input.conversationId);
+      saved = true;
+    } catch (err) {
+      // The design table is optional in a local run; the package still carries the design.
+      saveNote = ` The library table was not reachable, so the design was not saved (${err instanceof Error ? err.message : String(err)}).`;
+    }
   }
   return {
     ok,
@@ -200,7 +206,7 @@ export async function runGeneration(
     renderMs: render.ms,
     saved,
     message: ok
-      ? `The generated design passed every check${saved ? ' and joined the library as an untested entry' : ''}.`
+      ? `The generated design passed every check${saved ? ' and joined the library as an untested entry' : ''}.${saveNote}`
       : `The generated design failed ${report.failed.length} check${report.failed.length === 1 ? '' : 's'}: ${report.failed.map((f) => f.finding).join(' ')}`,
   };
 }

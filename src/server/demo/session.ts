@@ -1,6 +1,7 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { z } from 'zod';
-import type { Json } from '@shared/database';
-import { getAnonSupabaseClient } from '@/server/supabaseClient';
 import {
   planSchema,
   specificationSchema,
@@ -8,13 +9,15 @@ import {
   type Specification,
 } from '@shared/schemas/library';
 
-// Per-conversation demo state lives in the conversation's existing `settings` jsonb column
-// under the `demo` key (PRD, Data model). Only these helpers read and write it.
+// Demo session state: one JSON record per session id, kept in a temp directory on the server.
+// No user, no database. The page generates the id; the routes validate it as a UUID so the
+// file name is never attacker-controlled.
 
 export const demoQuestionSchema = z.object({
   question: z.string(),
   missing: z.array(
     z.object({
+      parameterId: z.string(),
       attributeId: z.string(),
       name: z.string(),
       unit: z.string(),
@@ -35,7 +38,7 @@ export const demoStateSchema = z
   .passthrough();
 export type DemoState = z.infer<typeof demoStateSchema>;
 
-export class DemoAuthError extends Error {
+export class DemoError extends Error {
   constructor(
     public readonly status: number,
     message: string,
@@ -44,42 +47,22 @@ export class DemoAuthError extends Error {
   }
 }
 
-export async function loadDemoConversation(
-  request: Request,
-  conversationId: string,
-) {
-  const supabase = getAnonSupabaseClient({
-    global: {
-      headers: { Authorization: request.headers.get('Authorization') ?? '' },
-    },
-  });
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData?.user;
-  if (!user) throw new DemoAuthError(401, 'sign in required');
-  const { data: conversation, error } = await supabase
-    .from('conversations')
-    .select('id, settings')
-    .eq('id', conversationId)
-    .eq('user_id', user.id)
-    .single();
-  if (error || !conversation)
-    throw new DemoAuthError(404, 'conversation not found');
-  const settings = (conversation.settings ?? {}) as Record<string, unknown>;
-  const demo = demoStateSchema.parse(settings.demo ?? {});
-  return { supabase, user, settings, demo };
+const sessionIdSchema = z.string().uuid();
+const storeDir = path.join(tmpdir(), 'michani-demo-sessions');
+
+function fileFor(sessionId: string): string {
+  return path.join(storeDir, `${sessionIdSchema.parse(sessionId)}.json`);
 }
 
-export async function saveDemoState(
-  supabase: ReturnType<typeof getAnonSupabaseClient>,
-  conversationId: string,
-  settings: Record<string, unknown>,
-  demo: DemoState,
-) {
-  const { error } = await supabase
-    .from('conversations')
-    .update({ settings: { ...settings, demo } as unknown as Json })
-    .eq('id', conversationId);
-  if (error) throw new Error(`saving demo state failed: ${error.message}`);
+export function loadDemoSession(sessionId: string): DemoState {
+  const file = fileFor(sessionId);
+  if (!existsSync(file)) return demoStateSchema.parse({});
+  return demoStateSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+}
+
+export function saveDemoSession(sessionId: string, demo: DemoState): void {
+  mkdirSync(storeDir, { recursive: true });
+  writeFileSync(fileFor(sessionId), JSON.stringify(demo));
 }
 
 export type { Plan, Specification };

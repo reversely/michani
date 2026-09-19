@@ -32,6 +32,7 @@ import { Route as ApiBillingStatusRouteImport } from './routes/api/billing-statu
 import { Route as ApiBillingProductsRouteImport } from './routes/api/billing-products'
 import { Route as ApiBillingCheckoutRouteImport } from './routes/api/billing-checkout'
 import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscription'
+import { Route as LayoutDemoRouteImport } from './routes/_layout/demo'
 import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth'
 import { Route as LayoutSplatRouteImport } from './routes/_layout/$'
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$'
@@ -44,7 +45,6 @@ import { Route as ApiDemoConfirmPlanRouteImport } from './routes/api/demo/confir
 import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id'
 import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings'
 import { Route as LayoutAuthHistoryRouteImport } from './routes/_layout/_auth/history'
-import { Route as LayoutAuthDemoRouteImport } from './routes/_layout/_auth/demo'
 import { Route as ApiInternalAccountDeleteRouteImport } from './routes/api/internal/account/delete'
 import { Route as LayoutAuthEditorIdRouteImport } from './routes/_layout/_auth/editor/$id'
 
@@ -162,6 +162,11 @@ const LayoutSubscriptionRoute = LayoutSubscriptionRouteImport.update({
   path: '/subscription',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutDemoRoute = LayoutDemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutAuthRoute = LayoutAuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => LayoutRoute,
@@ -221,11 +226,6 @@ const LayoutAuthHistoryRoute = LayoutAuthHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => LayoutAuthRoute,
 } as any)
-const LayoutAuthDemoRoute = LayoutAuthDemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => LayoutAuthRoute,
-} as any)
 const ApiInternalAccountDeleteRoute =
   ApiInternalAccountDeleteRouteImport.update({
     id: '/api/internal/account/delete',
@@ -249,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/terms-of-service': typeof TermsOfServiceRoute
   '/update-password': typeof UpdatePasswordRoute
   '/$': typeof LayoutSplatRoute
+  '/demo': typeof LayoutDemoRoute
   '/subscription': typeof LayoutSubscriptionRoute
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
@@ -262,7 +263,6 @@ export interface FileRoutesByFullPath {
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
   '/assets/$': typeof AssetsSplatRoute
-  '/demo': typeof LayoutAuthDemoRoute
   '/history': typeof LayoutAuthHistoryRoute
   '/settings': typeof LayoutAuthSettingsRoute
   '/share/$id': typeof LayoutShareIdRoute
@@ -287,6 +287,7 @@ export interface FileRoutesByTo {
   '/update-password': typeof UpdatePasswordRoute
   '/$': typeof LayoutSplatRoute
   '/': typeof LayoutIndexRoute
+  '/demo': typeof LayoutDemoRoute
   '/subscription': typeof LayoutSubscriptionRoute
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
@@ -300,7 +301,6 @@ export interface FileRoutesByTo {
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute
   '/api/title-generator': typeof ApiTitleGeneratorRoute
   '/assets/$': typeof AssetsSplatRoute
-  '/demo': typeof LayoutAuthDemoRoute
   '/history': typeof LayoutAuthHistoryRoute
   '/settings': typeof LayoutAuthSettingsRoute
   '/share/$id': typeof LayoutShareIdRoute
@@ -327,6 +327,7 @@ export interface FileRoutesById {
   '/update-password': typeof UpdatePasswordRoute
   '/_layout/$': typeof LayoutSplatRoute
   '/_layout/_auth': typeof LayoutAuthRouteWithChildren
+  '/_layout/demo': typeof LayoutDemoRoute
   '/_layout/subscription': typeof LayoutSubscriptionRoute
   '/api/billing-checkout': typeof ApiBillingCheckoutRoute
   '/api/billing-products': typeof ApiBillingProductsRoute
@@ -341,7 +342,6 @@ export interface FileRoutesById {
   '/api/title-generator': typeof ApiTitleGeneratorRoute
   '/assets/$': typeof AssetsSplatRoute
   '/_layout/': typeof LayoutIndexRoute
-  '/_layout/_auth/demo': typeof LayoutAuthDemoRoute
   '/_layout/_auth/history': typeof LayoutAuthHistoryRoute
   '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute
   '/_layout/share/$id': typeof LayoutShareIdRoute
@@ -368,6 +368,7 @@ export interface FileRouteTypes {
     | '/terms-of-service'
     | '/update-password'
     | '/$'
+    | '/demo'
     | '/subscription'
     | '/api/billing-checkout'
     | '/api/billing-products'
@@ -381,7 +382,6 @@ export interface FileRouteTypes {
     | '/api/prompt-generator'
     | '/api/title-generator'
     | '/assets/$'
-    | '/demo'
     | '/history'
     | '/settings'
     | '/share/$id'
@@ -406,6 +406,7 @@ export interface FileRouteTypes {
     | '/update-password'
     | '/$'
     | '/'
+    | '/demo'
     | '/subscription'
     | '/api/billing-checkout'
     | '/api/billing-products'
@@ -419,7 +420,6 @@ export interface FileRouteTypes {
     | '/api/prompt-generator'
     | '/api/title-generator'
     | '/assets/$'
-    | '/demo'
     | '/history'
     | '/settings'
     | '/share/$id'
@@ -445,6 +445,7 @@ export interface FileRouteTypes {
     | '/update-password'
     | '/_layout/$'
     | '/_layout/_auth'
+    | '/_layout/demo'
     | '/_layout/subscription'
     | '/api/billing-checkout'
     | '/api/billing-products'
@@ -459,7 +460,6 @@ export interface FileRouteTypes {
     | '/api/title-generator'
     | '/assets/$'
     | '/_layout/'
-    | '/_layout/_auth/demo'
     | '/_layout/_auth/history'
     | '/_layout/_auth/settings'
     | '/_layout/share/$id'
@@ -669,6 +669,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSubscriptionRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/demo': {
+      id: '/_layout/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof LayoutDemoRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/_auth': {
       id: '/_layout/_auth'
       path: ''
@@ -753,13 +760,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAuthHistoryRouteImport
       parentRoute: typeof LayoutAuthRoute
     }
-    '/_layout/_auth/demo': {
-      id: '/_layout/_auth/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof LayoutAuthDemoRouteImport
-      parentRoute: typeof LayoutAuthRoute
-    }
     '/api/internal/account/delete': {
       id: '/api/internal/account/delete'
       path: '/api/internal/account/delete'
@@ -778,14 +778,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface LayoutAuthRouteChildren {
-  LayoutAuthDemoRoute: typeof LayoutAuthDemoRoute
   LayoutAuthHistoryRoute: typeof LayoutAuthHistoryRoute
   LayoutAuthSettingsRoute: typeof LayoutAuthSettingsRoute
   LayoutAuthEditorIdRoute: typeof LayoutAuthEditorIdRoute
 }
 
 const LayoutAuthRouteChildren: LayoutAuthRouteChildren = {
-  LayoutAuthDemoRoute: LayoutAuthDemoRoute,
   LayoutAuthHistoryRoute: LayoutAuthHistoryRoute,
   LayoutAuthSettingsRoute: LayoutAuthSettingsRoute,
   LayoutAuthEditorIdRoute: LayoutAuthEditorIdRoute,
@@ -798,6 +796,7 @@ const LayoutAuthRouteWithChildren = LayoutAuthRoute._addFileChildren(
 interface LayoutRouteChildren {
   LayoutSplatRoute: typeof LayoutSplatRoute
   LayoutAuthRoute: typeof LayoutAuthRouteWithChildren
+  LayoutDemoRoute: typeof LayoutDemoRoute
   LayoutSubscriptionRoute: typeof LayoutSubscriptionRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   LayoutShareIdRoute: typeof LayoutShareIdRoute
@@ -806,6 +805,7 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutSplatRoute: LayoutSplatRoute,
   LayoutAuthRoute: LayoutAuthRouteWithChildren,
+  LayoutDemoRoute: LayoutDemoRoute,
   LayoutSubscriptionRoute: LayoutSubscriptionRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutShareIdRoute: LayoutShareIdRoute,

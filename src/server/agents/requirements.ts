@@ -108,7 +108,9 @@ export type RequirementsInput = {
   request: string;
   // Measurements the user already supplied through the panel, by parameter id.
   measurements?: Record<string, number>;
-  design: Pick<
+  // Absent before the library step has chosen a design; then part dimensions are keyed by
+  // attribute id and no measurement question is asked.
+  design?: Pick<
     DesignEntry,
     | 'id'
     | 'name'
@@ -132,7 +134,7 @@ export function buildRequirementsPrompt(
         `- ${a.id}: ${a.name}${a.unit ? ` (${a.unit})` : ''}. ${a.description}`,
     )
     .join('\n');
-  const parameterLines = input.design.parameters
+  const parameterLines = (input.design?.parameters ?? [])
     .map((p) => {
       const attr = input.attributes.find((a) => a.id === p.attributeId);
       const unit = attr?.unit ? ` (${attr.unit})` : '';
@@ -156,13 +158,17 @@ missing. Follow these rules.
 3. Components are pieces of purchased or existing hardware the part must fit. Match each one to
    a catalogue record id when one fits, keep its label, and record every measured value as an
    attribute value with source "user". Do not invent measurements.
-4. Dimensions of the part itself go in partMeasurements, one entry per design parameter id
-   from the list below, with the value in the parameter's unit. Do not put part dimensions
-   in components or print settings.
+4. Dimensions of the part itself go in partMeasurements, ${
+    input.design
+      ? "one entry per design parameter id from the list below, with the value in the parameter's unit"
+      : 'one entry per dimension the request states, keyed by the closest attribute id from the list below, with the value in millimetres'
+  }. Do not put part dimensions in components or print settings.
 5. Print settings hold one clearance value (attribute id "clearance", unit mm). If the user gave
    none, use ${DEFAULT_CLEARANCE_MM} with source "computed". Add "build-volume" only if the user
    stated one.
-6. The candidate design is "${input.design.id}" (${input.design.name}: ${input.design.description}).
+${
+  input.design
+    ? `6. The candidate design is "${input.design.id}" (${input.design.name}: ${input.design.description}).
    For each parameter below that the request does not measure and that is not a purely
    stylistic choice, ask for it: return kind
    "question" listing every missing measurement with its parameter id, attribute id, name, unit, and why the
@@ -171,7 +177,13 @@ missing. Follow these rules.
 7. When nothing is missing, return kind "specification" with the Plan: function "adaptation",
    candidateDesignId "${input.design.id}", riskLabel "needs expert review" if the part touches
    drinking water, medical use, or carries structural load, otherwise "general", and a one or
-   two sentence reason.
+   two sentence reason.`
+    : `6. No design has been chosen yet; the library step chooses one next. Never return kind
+   "question". Return kind "specification" with the Plan: function "adaptation",
+   candidateDesignId "pending", riskLabel "needs expert review" if the part touches drinking
+   water, medical use, or carries structural load, otherwise "general", and a one or two
+   sentence reason that describes what kind of part the request asks for.`
+}
 
 Attribute definitions:
 ${attributeLines}
@@ -210,6 +222,40 @@ export function finaliseRequirements(
   input: Omit<RequirementsInput, 'model'>,
 ): RequirementsResult {
   const parsed = requirementsOutputSchema.parse(output);
+  const specificationMissing =
+    parsed.kind === 'specification' && !parsed.specification;
+  if ((parsed.kind === 'question' || specificationMissing) && !input.design) {
+    // Before a design is chosen there is nothing to measure against, so a question here is
+    // premature: carry the request forward as its own requirement and let the library step
+    // decide. The measurement question comes after selection (R2).
+    return {
+      kind: 'specification',
+      specification: specificationSchema.parse({
+        id: `spec-${input.conversationId}`,
+        requirements: [input.request.trim()],
+        components: [],
+        partMeasurements: [],
+        printSettings: [
+          {
+            definitionId: 'clearance',
+            value: DEFAULT_CLEARANCE_MM,
+            source: 'computed',
+          },
+        ],
+      }),
+      plan: planSchema.parse({
+        id: `plan-${input.conversationId}`,
+        function: 'adaptation',
+        candidateDesignId: 'pending',
+        measurementsNeeded: [],
+        checkIds: CHECKS_BY_CLASS.A,
+        riskLabel: 'general',
+        reason:
+          'The request gives no measurements yet; the library step chooses a design first.',
+        confirmed: false,
+      }),
+    };
+  }
   if (parsed.kind === 'question') {
     if (!parsed.missing?.length || !parsed.question) {
       throw new Error(
@@ -222,10 +268,18 @@ export function finaliseRequirements(
       question: parsed.question,
     };
   }
-  if (!parsed.specification || !parsed.plan) {
-    throw new Error(
-      'specification output must carry a specification and a plan',
-    );
+  if (!parsed.specification) {
+    throw new Error('specification output must carry a specification');
+  }
+  if (!parsed.plan) {
+    if (input.design) throw new Error('specification output must carry a plan');
+    // Before selection the plan is provisional anyway; fill it rather than fail the step.
+    parsed.plan = {
+      function: 'adaptation',
+      candidateDesignId: 'pending',
+      riskLabel: 'general',
+      reason: 'The library step chooses a design next.',
+    };
   }
 
   const clearance = parsed.specification.printSettings.find(
@@ -266,7 +320,7 @@ export function finaliseRequirements(
   const measuredAttributes = new Set<string>();
   for (const c of specification.components)
     for (const v of c.attributes) measuredAttributes.add(v.definitionId);
-  const measurementsNeeded = input.design.parameters
+  const measurementsNeeded = (input.design?.parameters ?? [])
     .filter(
       (p) =>
         !measuredParameters.has(p.id) && !measuredAttributes.has(p.attributeId),
@@ -285,14 +339,14 @@ export function finaliseRequirements(
     function: parsed.plan.function,
     candidateDesignId:
       parsed.plan.function === 'adaptation'
-        ? (parsed.plan.candidateDesignId ?? input.design.id)
+        ? (input.design?.id ?? parsed.plan.candidateDesignId ?? 'pending')
         : undefined,
     generationBrief:
       parsed.plan.function === 'generation'
         ? parsed.plan.generationBrief
         : undefined,
     measurementsNeeded,
-    checkIds: CHECKS_BY_CLASS[input.design.partClass],
+    checkIds: CHECKS_BY_CLASS[input.design?.partClass ?? 'A'],
     riskLabel: parsed.plan.riskLabel,
     reason: parsed.plan.reason,
     confirmed: false,

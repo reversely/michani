@@ -240,3 +240,44 @@ export function applyCandidateToPlan(plan: Plan, candidate: Candidate): Plan {
     confirmed: false,
   });
 }
+
+// After a design is chosen, the parameters the request still leaves unmeasured (PRD R2). A
+// part measurement keyed by the parameter id or by its attribute id counts, as does a
+// component attribute with the same attribute id and any value the user typed into the panel.
+export function missingMeasurements(
+  design: Pick<DesignEntry, 'parameters'>,
+  specification: Specification,
+  supplied: Record<string, number>,
+  attributes: Array<{ id: string; name: string; unit?: string }>,
+): Array<{
+  parameterId: string;
+  attributeId: string;
+  name: string;
+  unit: string;
+  reason: string;
+}> {
+  const measured = new Set<string>(Object.keys(supplied));
+  for (const m of specification.partMeasurements) measured.add(m.parameterId);
+  const measuredAttributes = new Set<string>();
+  for (const m of specification.partMeasurements)
+    measuredAttributes.add(m.parameterId);
+  for (const c of specification.components)
+    for (const v of c.attributes) measuredAttributes.add(v.definitionId);
+  return design.parameters
+    .filter(
+      (p) =>
+        !measured.has(p.id) &&
+        !measuredAttributes.has(p.attributeId) &&
+        !['part', 'show-board', 'clearance'].includes(p.id),
+    )
+    .map((p) => {
+      const attr = attributes.find((a) => a.id === p.attributeId);
+      return {
+        parameterId: p.id,
+        attributeId: p.attributeId,
+        name: attr?.name ?? p.id,
+        unit: attr?.unit ?? 'mm',
+        reason: `The ${p.id.replace(/-/g, ' ')} of the design.`,
+      };
+    });
+}

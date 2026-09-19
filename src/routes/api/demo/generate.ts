@@ -13,13 +13,13 @@ import {
 import { buildReport, renderMarkdown } from '@/server/report/build';
 import { validateOverrides } from '@shared/library/overrides';
 import {
-  DemoAuthError,
-  loadDemoConversation,
-  saveDemoState,
+  DemoError,
+  loadDemoSession,
+  saveDemoSession,
 } from '@/server/demo/session';
 import { DEMO_MODEL } from './requirements';
 
-const bodySchema = z.object({ conversationId: z.string().uuid() }).strict();
+const bodySchema = z.object({ sessionId: z.string().uuid() }).strict();
 
 // Generation step (R18, R19): only for a confirmed Plan that selects generation. The table
 // write happens inside runGeneration after every check returns pass or warn.
@@ -30,10 +30,7 @@ export const Route = createFileRoute('/api/demo/generate')({
       POST: async ({ request }) => {
         try {
           const body = bodySchema.parse(await request.json());
-          const { supabase, settings, demo } = await loadDemoConversation(
-            request,
-            body.conversationId,
-          );
+          const demo = loadDemoSession(body.sessionId);
           if (!demo.specification || !demo.plan)
             return json({ error: 'no_specification' }, 409);
           const anthropic = createAnthropic({
@@ -45,10 +42,10 @@ export const Route = createFileRoute('/api/demo/generate')({
             plan: demo.plan,
             specification: demo.specification,
             attributes: getFolderIndex().attributes,
-            conversationId: body.conversationId,
+            conversationId: body.sessionId,
             save: saveGeneratedDesign,
           });
-          await saveDemoState(supabase, body.conversationId, settings, {
+          saveDemoSession(body.sessionId, {
             ...demo,
             generation: {
               ok: outcome.ok,
@@ -107,7 +104,7 @@ export const Route = createFileRoute('/api/demo/generate')({
               { error: 'generation_unavailable', message: err.message },
               403,
             );
-          if (err instanceof DemoAuthError)
+          if (err instanceof DemoError)
             return json({ error: err.message }, err.status);
           if (err instanceof z.ZodError)
             return json({ error: 'invalid_request' }, 400);

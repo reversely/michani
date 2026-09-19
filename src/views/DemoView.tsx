@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { apiJson } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -81,6 +79,20 @@ const libraryStepResponse = z.object({
     }),
   ]),
   plan: planSchema,
+  question: z
+    .object({
+      question: z.string(),
+      missing: z.array(
+        z.object({
+          parameterId: z.string(),
+          attributeId: z.string(),
+          name: z.string(),
+          unit: z.string(),
+          reason: z.string(),
+        }),
+      ),
+    })
+    .optional(),
   elapsedMs: z.number(),
 });
 type LibraryStep = z.infer<typeof libraryStepResponse>['result'];
@@ -136,9 +148,10 @@ const loopResponse = z.object({
 type LoopStep = z.infer<typeof loopResponse>;
 
 export function DemoView() {
-  const { user } = useAuth();
   const [attributes, setAttributes] = useState<AttributeDefinition[]>([]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  // One demo session per page load. The server keeps the session's records under this id;
+  // no account and no database are involved.
+  const [sessionId] = useState(() => crypto.randomUUID());
   const [request, setRequest] = useState('');
   const [measurements, setMeasurements] = useState<Record<string, number>>({});
   const [question, setQuestion] = useState<
@@ -165,35 +178,16 @@ export function DemoView() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const ensureConversation = useCallback(async () => {
-    if (conversationId) return conversationId;
-    if (!user) throw new Error('sign in required');
-    const id = crypto.randomUUID();
-    const { error: insertError } = await supabase.from('conversations').insert([
-      {
-        id,
-        user_id: user.id,
-        title: 'Demo: printed part',
-        type: 'parametric',
-        settings: { model: 'anthropic/claude-sonnet-5', demo: {} },
-      },
-    ]);
-    if (insertError) throw insertError;
-    setConversationId(id);
-    return id;
-  }, [conversationId, user]);
-
   const runRequirements = useCallback(async () => {
     setBusy('requirements');
     setError(undefined);
     try {
-      const id = await ensureConversation();
       // Parse here rather than through apiJson's schema parameter: the record schemas carry
       // defaults, and the explicit parse yields their output type with the defaults applied.
       const r = requirementsResponse.parse(
         await apiJson('demo/requirements', {
           method: 'POST',
-          body: JSON.stringify({ conversationId: id, request, measurements }),
+          body: JSON.stringify({ sessionId, request, measurements }),
         }),
       );
       setElapsedMs(r.elapsedMs);
@@ -216,38 +210,37 @@ export function DemoView() {
     } finally {
       setBusy(null);
     }
-  }, [ensureConversation, request, measurements]);
+  }, [sessionId, request, measurements]);
 
   const runLibrary = useCallback(async () => {
-    if (!conversationId) return;
     setBusy('library');
     setError(undefined);
     try {
       const r = libraryStepResponse.parse(
         await apiJson('demo/library', {
           method: 'POST',
-          body: JSON.stringify({ conversationId }),
+          body: JSON.stringify({ sessionId, measurements }),
         }),
       );
       setLibrary(r.result);
       setPlan(r.plan);
+      setQuestion(r.question ? { kind: 'question', ...r.question } : undefined);
       setStepTimes((t) => ({ ...t, library: r.elapsedMs }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(null);
     }
-  }, [conversationId]);
+  }, [sessionId, measurements]);
 
   const runLoop = useCallback(async () => {
-    if (!conversationId) return;
     setBusy('draft');
     setError(undefined);
     try {
       const r = loopResponse.parse(
         await apiJson('demo/run-loop', {
           method: 'POST',
-          body: JSON.stringify({ conversationId }),
+          body: JSON.stringify({ sessionId }),
         }),
       );
       setLoop(r);
@@ -262,17 +255,16 @@ export function DemoView() {
     } finally {
       setBusy(null);
     }
-  }, [conversationId]);
+  }, [sessionId]);
 
   const runGenerate = useCallback(async () => {
-    if (!conversationId) return;
     setBusy('draft');
     setError(undefined);
     try {
       const r = loopResponse.parse(
         await apiJson('demo/generate', {
           method: 'POST',
-          body: JSON.stringify({ conversationId }),
+          body: JSON.stringify({ sessionId }),
         }),
       );
       setGeneration(r);
@@ -288,7 +280,7 @@ export function DemoView() {
     } finally {
       setBusy(null);
     }
-  }, [conversationId]);
+  }, [sessionId]);
 
   const downloadPackage = useCallback(async () => {
     if (
@@ -323,14 +315,13 @@ export function DemoView() {
   }, [loop, stlBlob]);
 
   const confirmPlan = useCallback(async () => {
-    if (!conversationId) return;
     setBusy('confirm');
     setError(undefined);
     try {
       const r = confirmResponse.parse(
         await apiJson('demo/confirm-plan', {
           method: 'POST',
-          body: JSON.stringify({ conversationId }),
+          body: JSON.stringify({ sessionId }),
         }),
       );
       setPlan(r.plan);
@@ -339,10 +330,10 @@ export function DemoView() {
     } finally {
       setBusy(null);
     }
-  }, [conversationId]);
+  }, [sessionId]);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 text-adam-text-primary sm:px-6">
+    <main className="mx-auto flex h-full w-full max-w-3xl flex-col gap-6 overflow-y-auto px-4 py-6 text-adam-text-primary sm:px-6">
       <h1 className="text-xl font-semibold">Printed part from a request</h1>
       <p className="text-sm text-adam-neutral-300">
         Describe the part and the hardware it must fit, with measurements in
@@ -353,7 +344,7 @@ export function DemoView() {
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          void runRequirements();
+          void (question && library ? runLibrary() : runRequirements());
         }}
       >
         <label htmlFor="demo-request" className="text-sm font-medium">
@@ -390,7 +381,7 @@ export function DemoView() {
           {error}
         </p>
       )}
-      {specification && !question && (
+      {specification && (
         <section
           aria-label="Library selection"
           className="flex flex-col gap-3 rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 p-4 sm:p-6"

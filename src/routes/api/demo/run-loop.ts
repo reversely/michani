@@ -9,13 +9,13 @@ import { PlanNotConfirmedError } from '@/server/loop/controller';
 import { runAdaptationLoop } from '@/server/loop/run';
 import { buildReport, renderMarkdown } from '@/server/report/build';
 import {
-  DemoAuthError,
-  loadDemoConversation,
-  saveDemoState,
+  DemoError,
+  loadDemoSession,
+  saveDemoSession,
 } from '@/server/demo/session';
 import { DEMO_MODEL } from './requirements';
 
-const bodySchema = z.object({ conversationId: z.string().uuid() }).strict();
+const bodySchema = z.object({ sessionId: z.string().uuid() }).strict();
 
 // Runs draft, render, and verification for a confirmed adaptation Plan (R8 to R10). The
 // second library candidate, when one exists, is the fallback design after three failed
@@ -28,10 +28,7 @@ export const Route = createFileRoute('/api/demo/run-loop')({
       POST: async ({ request }) => {
         try {
           const body = bodySchema.parse(await request.json());
-          const { supabase, settings, demo } = await loadDemoConversation(
-            request,
-            body.conversationId,
-          );
+          const demo = loadDemoSession(body.sessionId);
           if (!demo.specification || !demo.plan)
             return json({ error: 'no_specification' }, 409);
           const designs = await listDesigns();
@@ -66,7 +63,7 @@ export const Route = createFileRoute('/api/demo/run-loop')({
             buildVolume,
           });
           const used = designs.find((d) => d.id === outcome.designId) ?? design;
-          await saveDemoState(supabase, body.conversationId, settings, {
+          saveDemoSession(body.sessionId, {
             ...demo,
             loop: outcome,
           });
@@ -95,7 +92,7 @@ export const Route = createFileRoute('/api/demo/run-loop')({
               { error: 'plan_not_confirmed', message: err.message },
               403,
             );
-          if (err instanceof DemoAuthError)
+          if (err instanceof DemoError)
             return json({ error: err.message }, err.status);
           if (err instanceof z.ZodError)
             return json({ error: 'invalid_request' }, 400);

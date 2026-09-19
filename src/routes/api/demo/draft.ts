@@ -10,13 +10,13 @@ import {
   PlanNotConfirmedError,
 } from '@/server/loop/controller';
 import {
-  DemoAuthError,
-  loadDemoConversation,
-  saveDemoState,
+  DemoError,
+  loadDemoSession,
+  saveDemoSession,
 } from '@/server/demo/session';
 import { DEMO_MODEL } from './requirements';
 
-const bodySchema = z.object({ conversationId: z.string().uuid() }).strict();
+const bodySchema = z.object({ sessionId: z.string().uuid() }).strict();
 
 // Drafting step behind the confirmed-Plan gate (R7, R10, R17). Returns the validated override
 // list plus the design's SCAD source so the browser renders through the -D path; nothing in
@@ -28,10 +28,7 @@ export const Route = createFileRoute('/api/demo/draft')({
       POST: async ({ request }) => {
         try {
           const body = bodySchema.parse(await request.json());
-          const { supabase, settings, demo } = await loadDemoConversation(
-            request,
-            body.conversationId,
-          );
+          const demo = loadDemoSession(body.sessionId);
           if (!demo.specification || !demo.plan)
             return json({ error: 'no_specification' }, 409);
           const designs = await listDesigns();
@@ -49,7 +46,7 @@ export const Route = createFileRoute('/api/demo/draft')({
             design,
             attributes: getFolderIndex().attributes,
           });
-          await saveDemoState(supabase, body.conversationId, settings, {
+          saveDemoSession(body.sessionId, {
             ...demo,
             draft: outcome.ok
               ? { values: outcome.values, attempts: outcome.attempts }
@@ -63,7 +60,7 @@ export const Route = createFileRoute('/api/demo/draft')({
               { error: 'plan_not_confirmed', message: err.message },
               403,
             );
-          if (err instanceof DemoAuthError)
+          if (err instanceof DemoError)
             return json({ error: err.message }, err.status);
           if (err instanceof z.ZodError)
             return json({ error: 'invalid_request' }, 400);
