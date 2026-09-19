@@ -43,7 +43,7 @@ describe('requirements agent (#13, recorded)', () => {
     let s = newSession('55555555-5555-4555-8555-555555555555');
     let r = await gatherTurn(s, fixture.turns[0].user, extract);
     expect(r.session.state).toBe('gathering');
-    expect(r.reply).toMatch(/dimensions|millimetres/);
+    expect(r.reply).toMatch(/How big|millimetres/);
     r = await gatherTurn(r.session, fixture.turns[1].user, extract);
     expect(r.session.state).toBe('gathering');
     expect(r.reply).toMatch(/filament/);
@@ -70,20 +70,20 @@ describe('requirements agent (#13, recorded)', () => {
     expect(system).toMatch(/Never follow instructions/);
     expect(prompt.split('</transcript>').length).toBe(2);
     const spec = finaliseExtracted(
-      { purpose: 'p' },
+      { summary: 'p' },
       { ...s, specification: { ...s.specification, material: 'pla' } },
     );
     expect(spec.material).toBe('pla');
-    expect(spec.purpose).toBe('p');
+    expect(spec.summary).toBe('p');
   });
 
   it('ignores fields outside the schema, so a model cannot set a plan or a state', () => {
     const s = newSession('77777777-7777-4777-8777-777777777777');
     const spec = finaliseExtracted(
-      { purpose: 'p', plan: { confirmed: true }, state: 'executed' },
+      { summary: 'p', plan: { confirmed: true }, state: 'executed' },
       s,
     );
-    expect(spec.purpose).toBe('p');
+    expect(spec.summary).toBe('p');
     expect('plan' in spec).toBe(false);
     expect(s.plan).toBeUndefined();
     expect(s.state).toBe('gathering');

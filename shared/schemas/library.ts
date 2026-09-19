@@ -174,9 +174,38 @@ export const contactClassSchema = z.enum([
 // The Specification fills in across conversational turns. The fields below `requirements`
 // are optional in the record so a partial one can be stored; the engine's completeness
 // check (src/engine/session.ts) decides which must be present before a plan exists.
+// A section the requirements agent adds while reasoning over the request: what it stated,
+// assumed, or found. Sections are context for planning and drafting; only size and material
+// gate the session (src/engine/session.ts).
+export const specificationSectionSchema = z
+  .object({
+    heading: z.string().min(1),
+    content: z.string().min(1),
+    status: z.enum(['stated', 'assumed', 'researched']),
+    source: z.string().optional(),
+  })
+  .strict();
+export type SpecificationSection = z.infer<typeof specificationSectionSchema>;
+
+export const sizeMmSchema = z
+  .object({
+    width: z.number().positive().optional(),
+    depth: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+    note: z.string().optional(),
+  })
+  .strict();
+
 export const specificationSchema = z
   .object({
     id,
+    // One sentence naming the part.
+    summary: z.string().optional(),
+    // The person's detailed description in their own words: a style reference, colours per
+    // component, anything the structured parts cannot hold. Editable on the screen.
+    details: z.string().optional(),
+    sizeMm: sizeMmSchema.optional(),
+    sections: z.array(specificationSectionSchema).default([]),
     requirements: z.array(z.string().min(1)).default([]),
     purpose: z.string().min(1).optional(),
     dimensions: z.array(statedDimensionSchema).default([]),

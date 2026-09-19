@@ -51,8 +51,8 @@ export function newSession(id: string): Session {
   });
 }
 
-// Which fields a Specification must carry before the session may leave gathering. Kept as
-// data so the list can grow without touching the state machine.
+// The only two gates on leaving gathering: a size the design tools can use and a material.
+// Everything else is context the agent reasons over and records as sections.
 export type RequiredField = {
   id: string;
   label: string;
@@ -62,40 +62,19 @@ export type RequiredField = {
 
 export const REQUIRED_FIELDS: RequiredField[] = [
   {
-    id: 'purpose',
-    label: 'purpose',
-    present: (s) => !!s.purpose,
-    ask: 'What is the part for, and who uses it?',
-  },
-  {
-    id: 'dimensions',
-    label: 'dimensions',
-    present: (s) => s.dimensions.length > 0 || s.partMeasurements.length > 0,
-    ask: 'What are its main dimensions, in millimetres?',
+    id: 'size',
+    label: 'size',
+    present: (s) =>
+      !!(s.sizeMm && (s.sizeMm.width || s.sizeMm.depth || s.sizeMm.height)) ||
+      s.dimensions.length > 0 ||
+      s.partMeasurements.length > 0,
+    ask: 'How big should it be? Give the main dimensions in millimetres, or say roughly and I will propose a size.',
   },
   {
     id: 'material',
     label: 'material',
     present: (s) => !!s.material,
-    ask: 'Which filament will it be printed in (PLA, PETG, ABS, TPU, nylon)?',
-  },
-  {
-    id: 'hardware',
-    label: 'hardware it must fit',
-    present: (s) => s.hardware === 'none' || s.components.length > 0,
-    ask: 'Does it have to fit any existing hardware? If so, what are its measurements?',
-  },
-  {
-    id: 'load',
-    label: 'load',
-    present: (s) => !!s.load,
-    ask: 'What load or force will it carry, and how often?',
-  },
-  {
-    id: 'environment',
-    label: 'environment',
-    present: (s) => !!s.environment,
-    ask: 'Where will it live: indoors, outdoors, wet, hot?',
+    ask: 'Which filament will it be printed in (PLA, PETG, ABS, TPU, nylon)? If you have no preference, say so and I will assume PLA.',
   },
 ];
 
@@ -193,6 +172,7 @@ export async function gatherTurn(
   }
   if (missing.length === 0) {
     const reply =
+      agentReply ??
       'I have everything needed for a specification. Next I choose a design and propose a plan.';
     next = advance(addTurn(next, 'assistant', reply), 'specified');
     return { session: next, reply };

@@ -32,6 +32,26 @@ const sessionSchema = z.object({
   transcript: z.array(turnSchema),
   specification: z
     .object({
+      summary: z.string().optional(),
+      details: z.string().optional(),
+      sizeMm: z
+        .object({
+          width: z.number().optional(),
+          depth: z.number().optional(),
+          height: z.number().optional(),
+          note: z.string().optional(),
+        })
+        .optional(),
+      sections: z
+        .array(
+          z.object({
+            heading: z.string(),
+            content: z.string(),
+            status: z.string(),
+            source: z.string().optional(),
+          }),
+        )
+        .default([]),
       purpose: z.string().optional(),
       dimensions: z.array(
         z.object({ name: z.string(), value: z.number(), unit: z.string() }),
@@ -98,33 +118,23 @@ const turnResponse = z.object({
   elapsedMs: z.number(),
 });
 
-const FIELDS: Array<{
-  label: string;
-  get: (s: EngineSession['specification']) => string;
-}> = [
-  { label: 'Purpose', get: (s) => s.purpose ?? '' },
-  {
-    label: 'Dimensions',
-    get: (s) =>
-      s.dimensions.map((d) => `${d.name} ${d.value} ${d.unit}`).join(', '),
-  },
-  { label: 'Material', get: (s) => s.material ?? '' },
-  {
-    label: 'Hardware',
-    get: (s) =>
-      s.hardware === 'listed'
-        ? s.components.map((c) => c.label).join(', ')
-        : (s.hardware ?? ''),
-  },
-  { label: 'Load', get: (s) => s.load ?? '' },
-  { label: 'Environment', get: (s) => s.environment ?? '' },
-  { label: 'Contact', get: (s) => s.contactClass ?? '' },
-];
+function sizeText(s: EngineSession['specification']): string {
+  if (s.sizeMm) {
+    const parts = [
+      s.sizeMm.width && `${s.sizeMm.width} wide`,
+      s.sizeMm.depth && `${s.sizeMm.depth} deep`,
+      s.sizeMm.height && `${s.sizeMm.height} high`,
+    ].filter(Boolean);
+    return `${parts.join(', ')} mm${s.sizeMm.note ? ` (${s.sizeMm.note})` : ''}`;
+  }
+  return s.dimensions.map((d) => `${d.name} ${d.value} ${d.unit}`).join(', ');
+}
 
 export function EngineView() {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [session, setSession] = useState<EngineSession>();
   const [draft, setDraft] = useState('');
+  const [detailsDraft, setDetailsDraft] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [elapsed, setElapsed] = useState<number>();
@@ -289,22 +299,59 @@ export function EngineView() {
           <h2 className="mb-2 font-semibold">
             Specification{session ? ` (${session.state})` : ''}
           </h2>
-          <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1">
-            {FIELDS.map((f) => (
-              <div key={f.label} className="contents">
-                <dt className="text-adam-neutral-300">{f.label}</dt>
-                <dd
-                  className={spec && f.get(spec) ? '' : 'text-adam-neutral-500'}
-                >
-                  {spec && f.get(spec) ? f.get(spec) : 'not yet stated'}
-                </dd>
-              </div>
-            ))}
+          {spec?.summary && <p className="mb-2">{spec.summary}</p>}
+          <dl className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1">
+            <dt className="text-adam-neutral-300">Size</dt>
+            <dd
+              className={spec && sizeText(spec) ? '' : 'text-adam-neutral-500'}
+            >
+              {spec && sizeText(spec) ? sizeText(spec) : 'not yet known'}
+            </dd>
+            <dt className="text-adam-neutral-300">Material</dt>
+            <dd className={spec?.material ? '' : 'text-adam-neutral-500'}>
+              {spec?.material ?? 'not yet known'}
+            </dd>
           </dl>
-          {spec && spec.requirements.length > 0 && (
-            <ul className="mt-2 list-disc pl-5">
-              {spec.requirements.map((r, i) => (
-                <li key={i}>{r}</li>
+          <label
+            htmlFor="engine-details"
+            className="mt-3 block text-adam-neutral-300"
+          >
+            Details, in your words
+          </label>
+          <Textarea
+            id="engine-details"
+            value={detailsDraft ?? spec?.details ?? ''}
+            onChange={(e) => setDetailsDraft(e.target.value)}
+            onBlur={() => {
+              if (
+                detailsDraft !== undefined &&
+                detailsDraft.trim() &&
+                detailsDraft !== spec?.details
+              ) {
+                void send(`Details: ${detailsDraft.trim()}`);
+              }
+              setDetailsDraft(undefined);
+            }}
+            rows={3}
+            placeholder="Anything the assistant should know: a style reference, colours per part, how it is used"
+          />
+          {spec && spec.sections.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-2">
+              {spec.sections.map((sec, i) => (
+                <li key={i}>
+                  <p>
+                    <span className="font-medium">{sec.heading}</span>{' '}
+                    <span className="text-xs text-adam-neutral-400">
+                      {sec.status}
+                    </span>
+                  </p>
+                  <p className="text-adam-neutral-300">{sec.content}</p>
+                  {sec.source && (
+                    <p className="text-xs text-adam-neutral-500">
+                      {sec.source}
+                    </p>
+                  )}
+                </li>
               ))}
             </ul>
           )}

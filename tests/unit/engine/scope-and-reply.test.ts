@@ -82,7 +82,7 @@ describe('agent-authored replies and scope (#19)', () => {
 
   it('a placeholder reply or scope is dropped', async () => {
     const extract = requirementsExtractor(
-      scripted([{ purpose: 'p', scope: '<UNKNOWN>', reply: 'n/a' }]),
+      scripted([{ summary: 'p', scope: '<UNKNOWN>', reply: 'n/a' }]),
     );
     const r = await gatherTurn(
       newSession('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
@@ -90,7 +90,7 @@ describe('agent-authored replies and scope (#19)', () => {
       extract,
     );
     expect(r.session.specification.scope).toBeUndefined();
-    expect(r.reply).toMatch(/dimensions|millimetres/);
+    expect(r.reply).toMatch(/How big|millimetres/);
   });
 
   it('the research tool exists for an Anthropic model and not for a mock', () => {

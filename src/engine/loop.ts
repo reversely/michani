@@ -3,6 +3,7 @@ import {
   planSchema,
   type DesignEntry,
   type Plan,
+  type Specification,
 } from '@shared/schemas/library';
 import type { OverrideViolation } from '@shared/library/overrides';
 import { validateOverrides } from '@shared/library/overrides';
@@ -91,12 +92,7 @@ export async function planSession(
       ...base,
       function: 'generation',
       candidateDesignId: undefined,
-      generationBrief: [
-        session.specification.purpose,
-        ...session.specification.requirements,
-      ]
-        .filter(Boolean)
-        .join(' '),
+      generationBrief: generationBriefFrom(session.specification),
       reason: result.message,
       riskLabel: 'needs expert review',
     });
@@ -316,4 +312,33 @@ export function generationBriefWithFeedback(
   );
   if (feedback.length === 0) return base;
   return `${base}\n<feedback>\nThe previous attempt was verified and these verdicts must be resolved in this attempt:\n${feedback.map((f) => `- ${f.replace(/<\/?feedback>/g, '')}`).join('\n')}\n</feedback>`;
+}
+
+// The brief the generation function receives: the summary, the person's own detailed words,
+// the size, the material, and every section with its status, so a style reference and the
+// assumptions behind it reach the model that writes the geometry.
+export function generationBriefFrom(spec: Specification): string {
+  const size = spec.sizeMm
+    ? [
+        spec.sizeMm.width && `width ${spec.sizeMm.width} mm`,
+        spec.sizeMm.depth && `depth ${spec.sizeMm.depth} mm`,
+        spec.sizeMm.height && `height ${spec.sizeMm.height} mm`,
+        spec.sizeMm.note,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : spec.dimensions.map((d) => `${d.name} ${d.value} ${d.unit}`).join(', ');
+  return [
+    spec.summary ?? spec.purpose ?? '',
+    spec.details ? `Details from the person: ${spec.details}` : '',
+    size ? `Size: ${size}.` : '',
+    spec.material ? `Material: ${spec.material}.` : '',
+    ...spec.sections.map(
+      (s) =>
+        `${s.heading} (${s.status}${s.source ? `, source ${s.source}` : ''}): ${s.content}`,
+    ),
+    ...spec.requirements,
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
