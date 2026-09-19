@@ -99,3 +99,27 @@ describe('agent-authored replies and scope (#19)', () => {
     expect(Object.keys(researchTools(model))).toEqual(['research']);
   });
 });
+
+describe('dimension shapes', () => {
+  it('accepts name/value, feature/mm, numeric-field objects, strings, and inches', async () => {
+    const { normaliseDimensions } = await import(
+      '@/engine/agents/requirements'
+    );
+    const out = normaliseDimensions([
+      { name: 'width', value: 120, unit: 'mm' },
+      { feature: 'seat width', mm: 127 },
+      { dimension: 'seat depth', valueMm: 127 },
+      { width: 5, depth: 5, unit: 'in' },
+      'height 300 mm',
+      { note: 'no number' },
+    ]);
+    expect(out).toEqual([
+      { name: 'width', value: 120, unit: 'mm' },
+      { name: 'seat width', value: 127, unit: 'mm' },
+      { name: 'seat depth', value: 127, unit: 'mm' },
+      { name: 'width', value: 127, unit: 'mm' },
+      { name: 'depth', value: 127, unit: 'mm' },
+      { name: 'height', value: 300, unit: 'mm' },
+    ]);
+  });
+});

@@ -243,20 +243,8 @@ export function finaliseExtraction(
       (r) => typeof r === 'string' && r.trim() !== '',
     );
   }
-  if (Array.isArray(picked.dimensions)) {
-    picked.dimensions = picked.dimensions
-      .map((d) =>
-        d && typeof d === 'object'
-          ? { ...(d as object), value: Number((d as { value: unknown }).value) }
-          : d,
-      )
-      .filter(
-        (d) =>
-          d &&
-          typeof d === 'object' &&
-          Number.isFinite((d as { value: number }).value),
-      );
-  }
+  if (Array.isArray(picked.dimensions))
+    picked.dimensions = normaliseDimensions(picked.dimensions);
   const { reply, ...rest } = extractedSchema.parse(normalise(picked));
   const specification = specificationSchema.parse({
     ...session.specification,
@@ -307,4 +295,57 @@ export function requirementsExtractor(model: LanguageModel): Extractor {
     });
     return finaliseExtraction(result.output, session);
   };
+}
+
+// Dimension entries arrive in several shapes: { name, value, unit }, { feature, mm }, or an
+// object of numeric fields such as { width: 127, depth: 127 }. Each becomes { name, value,
+// unit } in millimetres, with inches converted; anything without a finite number is dropped.
+const INCH = /^(in|inch|inches|")$/i;
+const VALUE_KEY = /^(value|value_?mm|mm|size|length_?mm|measurement)$/i;
+export function normaliseDimensions(
+  raw: unknown[],
+): Array<{ name: string; value: number; unit: string }> {
+  const out: Array<{ name: string; value: number; unit: string }> = [];
+  for (const entry of raw) {
+    if (typeof entry === 'string') {
+      const m =
+        /^\s*([a-z][a-z ]*?)\s*[:=]?\s*(-?\d+(?:\.\d+)?)\s*(mm|cm|m|in|inch|inches|")?\s*$/i.exec(
+          entry,
+        );
+      if (m) out.push(convert(m[1].trim(), Number(m[2]), m[3] ?? 'mm'));
+      continue;
+    }
+    if (!entry || typeof entry !== 'object') continue;
+    const o = entry as Record<string, unknown>;
+    const name = [o.name, o.label, o.feature, o.dimension, o.axis].find(
+      (v) => typeof v === 'string',
+    ) as string | undefined;
+    const valueKey = Object.keys(o).find((k) => VALUE_KEY.test(k));
+    const value = valueKey === undefined ? undefined : o[valueKey];
+    const unit = typeof o.unit === 'string' ? o.unit : 'mm';
+    if (name && value !== undefined) {
+      out.push(convert(name, Number(value), unit));
+      continue;
+    }
+    for (const [k, v] of Object.entries(o)) {
+      const n =
+        typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+      if (Number.isFinite(n) && !VALUE_KEY.test(k))
+        out.push(convert(k, n, unit));
+    }
+  }
+  return out.filter((d) => Number.isFinite(d.value));
+}
+
+function convert(
+  name: string,
+  value: number,
+  unit: string,
+): { name: string; value: number; unit: string } {
+  const u = unit.trim().toLowerCase();
+  if (INCH.test(u))
+    return { name, value: Math.round(value * 25.4 * 100) / 100, unit: 'mm' };
+  if (u === 'cm') return { name, value: value * 10, unit: 'mm' };
+  if (u === 'm') return { name, value: value * 1000, unit: 'mm' };
+  return { name, value, unit: 'mm' };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import { apiJson } from '@/services/api';
+import { apiUrl } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
@@ -152,12 +152,21 @@ export function EngineView() {
           },
       );
       try {
-        const r = turnResponse.parse(
-          await apiJson('engine/turn', {
-            method: 'POST',
-            body: JSON.stringify({ sessionId, message: text }),
-          }),
-        );
+        const response = await fetch(apiUrl('engine/turn'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, message: text }),
+        });
+        const data: unknown = await response.json();
+        if (!response.ok) {
+          const d = data as { error?: string; message?: string };
+          throw new Error(
+            d.message
+              ? `The assistant's answer could not be used (${d.message.slice(0, 200)}). Send your message again.`
+              : `The turn failed (${d.error ?? response.status}). Send your message again.`,
+          );
+        }
+        const r = turnResponse.parse(data);
         setSession(r.session);
         setElapsed(r.elapsedMs);
       } catch (e) {
