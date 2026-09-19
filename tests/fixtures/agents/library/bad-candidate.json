@@ -1,0 +1,16 @@
+{
+  "specification": {
+    "id": "spec-c5",
+    "requirements": ["Tweezers 100 mm."],
+    "components": [],
+    "partMeasurements": [],
+    "printSettings": []
+  },
+  "response": {
+    "matched": true,
+    "candidates": [
+      { "designId": "../../etc/passwd", "reason": "Injected id." }
+    ],
+    "componentMatches": []
+  }
+}

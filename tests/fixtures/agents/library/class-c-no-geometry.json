@@ -1,0 +1,32 @@
+{
+  "specification": {
+    "id": "spec-c3",
+    "requirements": ["The case houses a 90 by 50 mm board with two holes."],
+    "components": [
+      {
+        "id": "custom-board",
+        "label": "Custom 90 by 50 mm board",
+        "attributes": [
+          { "definitionId": "length", "value": 90, "source": "user" },
+          { "definitionId": "width", "value": 50, "source": "user" }
+        ],
+        "interfaceFeatures": [],
+        "keywords": []
+      }
+    ],
+    "partMeasurements": [],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "response": {
+    "matched": true,
+    "candidates": [
+      {
+        "designId": "board-enclosure",
+        "reason": "The request is a case for a rectangular board, which the enclosure design provides."
+      }
+    ],
+    "componentMatches": [{ "componentId": "custom-board", "catalogueId": null }]
+  }
+}

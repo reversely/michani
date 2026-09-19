@@ -1,0 +1,33 @@
+{
+  "specification": {
+    "id": "spec-c4",
+    "requirements": ["The adapter joins a 25 mm pipe to a 32 mm pipe."],
+    "components": [
+      {
+        "id": "pipe-round",
+        "label": "Garden hose pipe",
+        "attributes": [
+          { "definitionId": "outer-diameter", "value": 25, "source": "user" }
+        ],
+        "interfaceFeatures": [],
+        "keywords": []
+      }
+    ],
+    "partMeasurements": [],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "response": {
+    "matched": true,
+    "candidates": [
+      {
+        "designId": "pipe-adapter",
+        "reason": "The request joins two measured pipes, which the pipe adapter design does."
+      }
+    ],
+    "componentMatches": [
+      { "componentId": "pipe-round", "catalogueId": "pipe-round" }
+    ]
+  }
+}

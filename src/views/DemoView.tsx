@@ -49,6 +49,32 @@ const requirementsResponse = z.object({
 
 const confirmResponse = z.object({ plan: planSchema });
 
+const candidateSchema = z.object({
+  designId: z.string(),
+  name: z.string(),
+  reason: z.string(),
+  partClass: z.enum(['A', 'B', 'C']),
+  evidenceLevel: z.string(),
+});
+const libraryStepResponse = z.object({
+  result: z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('candidates'),
+      candidates: z.array(candidateSchema),
+      componentsWithoutGeometry: z.array(z.string()),
+      stop: z.string().optional(),
+    }),
+    z.object({
+      kind: z.literal('no-match'),
+      message: z.string(),
+      componentsWithoutGeometry: z.array(z.string()),
+    }),
+  ]),
+  plan: planSchema,
+  elapsedMs: z.number(),
+});
+type LibraryStep = z.infer<typeof libraryStepResponse>['result'];
+
 export function DemoView() {
   const { user } = useAuth();
   const [attributes, setAttributes] = useState<AttributeDefinition[]>([]);
@@ -60,7 +86,10 @@ export function DemoView() {
   >();
   const [specification, setSpecification] = useState<Specification>();
   const [plan, setPlan] = useState<Plan>();
-  const [busy, setBusy] = useState<'requirements' | 'confirm' | null>(null);
+  const [library, setLibrary] = useState<LibraryStep>();
+  const [busy, setBusy] = useState<
+    'requirements' | 'library' | 'confirm' | null
+  >(null);
   const [error, setError] = useState<string>();
   const [elapsedMs, setElapsedMs] = useState<number>();
 
@@ -102,6 +131,7 @@ export function DemoView() {
         }),
       );
       setElapsedMs(r.elapsedMs);
+      setLibrary(undefined);
       if (r.result.kind === 'question') {
         setQuestion(r.result);
         setSpecification(undefined);
@@ -117,6 +147,26 @@ export function DemoView() {
       setBusy(null);
     }
   }, [ensureConversation, request, measurements]);
+
+  const runLibrary = useCallback(async () => {
+    if (!conversationId) return;
+    setBusy('library');
+    setError(undefined);
+    try {
+      const r = libraryStepResponse.parse(
+        await apiJson('demo/library', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId }),
+        }),
+      );
+      setLibrary(r.result);
+      setPlan(r.plan);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  }, [conversationId]);
 
   const confirmPlan = useCallback(async () => {
     if (!conversationId) return;
@@ -185,6 +235,58 @@ export function DemoView() {
         <p role="alert" className="text-sm text-red-400">
           {error}
         </p>
+      )}
+      {specification && !question && (
+        <section
+          aria-label="Library selection"
+          className="flex flex-col gap-3 rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 p-4 sm:p-6"
+        >
+          <h2 className="text-base font-semibold">Library design</h2>
+          {!library && (
+            <Button
+              type="button"
+              onClick={() => void runLibrary()}
+              disabled={busy !== null}
+              className="w-full sm:w-auto"
+            >
+              {busy === 'library'
+                ? 'Searching the library'
+                : 'Select a library design'}
+            </Button>
+          )}
+          {library?.kind === 'no-match' && (
+            <p className="text-sm" role="status">
+              {library.message}
+            </p>
+          )}
+          {library?.kind === 'candidates' && (
+            <ol className="flex flex-col gap-2 text-sm">
+              {library.candidates.map((c, i) => (
+                <li
+                  key={c.designId}
+                  className="rounded-md border border-adam-neutral-700 p-3"
+                >
+                  <p className="font-medium">
+                    {i + 1}. {c.name} (class {c.partClass}, evidence level{' '}
+                    {c.evidenceLevel})
+                  </p>
+                  <p className="text-adam-neutral-300">{c.reason}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+          {library?.kind === 'candidates' && library.stop && (
+            <p className="text-sm text-red-400" role="alert">
+              {library.stop}
+            </p>
+          )}
+          {library && library.componentsWithoutGeometry.length > 0 && (
+            <p className="text-xs text-adam-neutral-400">
+              Measurements only, no geometry modelled:{' '}
+              {library.componentsWithoutGeometry.join(', ')}
+            </p>
+          )}
+        </section>
       )}
       {(question || specification || plan) && (
         <MeasurementsPanel

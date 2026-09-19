@@ -1,0 +1,23 @@
+{
+  "specification": {
+    "id": "spec-c1",
+    "requirements": ["The tweezers are 120 mm long.", "The tip is 3 mm wide."],
+    "components": [],
+    "partMeasurements": [
+      { "parameterId": "length", "value": 120, "source": "user" }
+    ],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "response": {
+    "matched": true,
+    "candidates": [
+      {
+        "designId": "tweezers",
+        "reason": "The request asks for tweezers and names a length and tip width, which the tweezers design exposes as parameters."
+      }
+    ],
+    "componentMatches": []
+  }
+}

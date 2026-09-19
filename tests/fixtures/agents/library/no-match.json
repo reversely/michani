@@ -1,0 +1,30 @@
+{
+  "specification": {
+    "id": "spec-c2",
+    "requirements": [
+      "The crank arm is 200 mm long.",
+      "The socket fits a 25 mm square shaft."
+    ],
+    "components": [
+      {
+        "id": "pump-shaft",
+        "label": "Pump square shaft, 25 mm",
+        "attributes": [
+          { "definitionId": "width", "value": 25, "source": "user" }
+        ],
+        "interfaceFeatures": [],
+        "keywords": []
+      }
+    ],
+    "partMeasurements": [],
+    "printSettings": [
+      { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+    ]
+  },
+  "response": {
+    "matched": false,
+    "candidates": [],
+    "noMatchReason": "no library design is a crank handle or any lever with a shaft socket",
+    "componentMatches": [{ "componentId": "pump-shaft", "catalogueId": null }]
+  }
+}
