@@ -1,0 +1,18 @@
+{
+  "id": "pipe-round",
+  "label": "Round pipe, measured outer diameter",
+  "attributes": [
+    { "definitionId": "outer-diameter", "value": 25, "source": "library" }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "outer-wall",
+      "featureType": "face",
+      "attributes": [
+        { "definitionId": "outer-diameter", "value": 25, "source": "library" }
+      ],
+      "clearanceRule": "plus"
+    }
+  ],
+  "keywords": ["pipe", "tube", "hose", "conduit", "PVC"]
+}

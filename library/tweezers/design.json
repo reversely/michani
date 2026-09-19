@@ -1,0 +1,56 @@
+{
+  "id": "tweezers",
+  "name": "Tweezers",
+  "description": "Flat-arm tweezers for picking up small items. Standalone printed part with no mating hardware.",
+  "file": "design.scad",
+  "source": "curated",
+  "licence": "CC0-1.0",
+  "attribution": "Authored for the michani demo, 2026. Part family reference: Field Ready medical item collection.",
+  "partClass": "A",
+  "riskLabel": "general",
+  "evidenceLevel": "untested",
+  "parameters": [
+    {
+      "id": "length",
+      "variable": "length",
+      "attributeId": "length",
+      "default": 100,
+      "min": 60,
+      "max": 160
+    },
+    {
+      "id": "tip-width",
+      "variable": "tip_width",
+      "attributeId": "width",
+      "default": 4,
+      "min": 2,
+      "max": 8
+    },
+    {
+      "id": "arm-thickness",
+      "variable": "arm_thickness",
+      "attributeId": "thickness",
+      "default": 2,
+      "min": 1.2,
+      "max": 4
+    },
+    {
+      "id": "arm-gap",
+      "variable": "arm_gap",
+      "attributeId": "gap",
+      "default": 10,
+      "min": 4,
+      "max": 20
+    },
+    {
+      "id": "arm-width",
+      "variable": "arm_width",
+      "attributeId": "width",
+      "default": 12,
+      "min": 8,
+      "max": 20,
+      "constraints": ["arm-width >= tip-width"]
+    }
+  ],
+  "keywords": ["tweezers", "forceps", "pick up", "grip small items", "splinter"]
+}

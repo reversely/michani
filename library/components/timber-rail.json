@@ -1,0 +1,16 @@
+{
+  "id": "timber-rail",
+  "label": "Timber rail, measured width",
+  "attributes": [{ "definitionId": "width", "value": 40, "source": "library" }],
+  "interfaceFeatures": [
+    {
+      "id": "rail-top",
+      "featureType": "edge",
+      "attributes": [
+        { "definitionId": "width", "value": 40, "source": "library" }
+      ],
+      "clearanceRule": "plus"
+    }
+  ],
+  "keywords": ["timber rail", "wood rail", "batten", "wooden beam", "rack"]
+}

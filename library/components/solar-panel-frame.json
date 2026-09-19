@@ -1,0 +1,18 @@
+{
+  "id": "solar-panel-frame",
+  "label": "Solar panel aluminium frame, measured thickness",
+  "attributes": [
+    { "definitionId": "thickness", "value": 35, "source": "library" }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "frame-edge",
+      "featureType": "edge",
+      "attributes": [
+        { "definitionId": "thickness", "value": 35, "source": "library" }
+      ],
+      "clearanceRule": "plus"
+    }
+  ],
+  "keywords": ["solar panel", "panel frame", "photovoltaic", "PV module"]
+}

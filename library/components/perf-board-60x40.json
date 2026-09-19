@@ -1,0 +1,61 @@
+{
+  "id": "perf-board-60x40",
+  "label": "Perf board, 60 by 40 mm, four 3 mm corner holes",
+  "attributes": [
+    { "definitionId": "length", "value": 60, "source": "library" },
+    { "definitionId": "width", "value": 40, "source": "library" },
+    { "definitionId": "thickness", "value": 1.6, "source": "library" }
+  ],
+  "interfaceFeatures": [
+    {
+      "id": "hole-1",
+      "featureType": "hole",
+      "attributes": [
+        { "definitionId": "hole-diameter", "value": 3, "source": "library" }
+      ],
+      "position": [3.5, 3.5, 0],
+      "clearanceRule": "plus"
+    },
+    {
+      "id": "hole-2",
+      "featureType": "hole",
+      "attributes": [
+        { "definitionId": "hole-diameter", "value": 3, "source": "library" }
+      ],
+      "position": [56.5, 3.5, 0],
+      "clearanceRule": "plus"
+    },
+    {
+      "id": "hole-3",
+      "featureType": "hole",
+      "attributes": [
+        { "definitionId": "hole-diameter", "value": 3, "source": "library" }
+      ],
+      "position": [56.5, 36.5, 0],
+      "clearanceRule": "plus"
+    },
+    {
+      "id": "hole-4",
+      "featureType": "hole",
+      "attributes": [
+        { "definitionId": "hole-diameter", "value": 3, "source": "library" }
+      ],
+      "position": [3.5, 36.5, 0],
+      "clearanceRule": "plus"
+    }
+  ],
+  "geometrySource": {
+    "tier": "nopscadlib",
+    "module": "PERF60x40",
+    "licence": "GPL-3.0",
+    "evidenceLevel": "prototyped"
+  },
+  "keywords": [
+    "perf board",
+    "prototype board",
+    "circuit board",
+    "pcb",
+    "water tester board",
+    "sensor board"
+  ]
+}

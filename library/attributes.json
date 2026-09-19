@@ -1,0 +1,96 @@
+[
+  {
+    "id": "length",
+    "name": "Length",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 1, "max": 400 },
+    "description": "Longest dimension of a part along its main axis."
+  },
+  {
+    "id": "width",
+    "name": "Width",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 1, "max": 400 },
+    "description": "Dimension across the main axis."
+  },
+  {
+    "id": "thickness",
+    "name": "Thickness",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0.4, "max": 50 },
+    "description": "Material thickness of a wall, arm, or sheet."
+  },
+  {
+    "id": "gap",
+    "name": "Gap",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0, "max": 100 },
+    "description": "Open distance between two features at rest."
+  },
+  {
+    "id": "outer-diameter",
+    "name": "Outer diameter",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 1, "max": 300 },
+    "description": "Outside diameter of a round part such as a pipe."
+  },
+  {
+    "id": "hole-diameter",
+    "name": "Hole diameter",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0.5, "max": 50 },
+    "description": "Diameter of a through hole."
+  },
+  {
+    "id": "hole-inset",
+    "name": "Hole inset",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0.5, "max": 50 },
+    "description": "Distance from a board edge to a hole centre."
+  },
+  {
+    "id": "depth",
+    "name": "Depth",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 1, "max": 200 },
+    "description": "How far a socket, slot, or clip reaches."
+  },
+  {
+    "id": "height",
+    "name": "Height",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0.5, "max": 300 },
+    "description": "Vertical extent of a part or feature."
+  },
+  {
+    "id": "clearance",
+    "name": "Clearance",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0, "max": 2 },
+    "description": "Extra space added to a mating dimension so printed parts fit. Default 0.3 mm for FDM printing."
+  },
+  {
+    "id": "offset",
+    "name": "Offset",
+    "dataType": "number",
+    "unit": "mm",
+    "range": { "min": 0, "max": 400 },
+    "description": "Position of a feature along an edge, measured from one end."
+  },
+  {
+    "id": "build-volume",
+    "name": "Build volume",
+    "dataType": "string",
+    "description": "Printer build volume as width x depth x height in millimetres, when the user supplies one."
+  }
+]
