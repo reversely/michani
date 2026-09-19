@@ -1,0 +1,30 @@
+{
+  "request": "Print tweezers 120 mm long with a 3 mm tip, 2 mm thick arms, 12 mm gap, 14 mm wide at the bridge. General workshop use.",
+  "measurements": {},
+  "response": {
+    "kind": "specification",
+    "specification": {
+      "requirements": [
+        "The tweezers are 120 mm long.",
+        "The tip is 3 mm wide.",
+        "Each arm is 2 mm thick.",
+        "The arms rest 12 mm apart at the tips.",
+        "The arms are 14 mm wide at the bridge."
+      ],
+      "components": [],
+      "printSettings": [
+        { "definitionId": "length", "value": 120, "source": "user" },
+        { "definitionId": "width", "value": 3, "source": "user" },
+        { "definitionId": "thickness", "value": 2, "source": "user" },
+        { "definitionId": "gap", "value": 12, "source": "user" },
+        { "definitionId": "clearance", "value": 0.5, "source": "user" }
+      ]
+    },
+    "plan": {
+      "function": "adaptation",
+      "candidateDesignId": "tweezers",
+      "riskLabel": "general",
+      "reason": "The request names every tweezers dimension and no hardware, so the curated tweezers design adapts directly."
+    }
+  }
+}

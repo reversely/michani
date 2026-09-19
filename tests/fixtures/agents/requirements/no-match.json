@@ -1,0 +1,33 @@
+{
+  "request": "A replacement crank handle for a hand-cranked well pump, 200 mm arm, 25 mm square shaft socket.",
+  "measurements": {},
+  "response": {
+    "kind": "specification",
+    "specification": {
+      "requirements": [
+        "The crank arm is 200 mm long.",
+        "The socket fits a 25 mm square shaft."
+      ],
+      "components": [
+        {
+          "id": "pump-shaft",
+          "label": "Pump square shaft, 25 mm",
+          "attributes": [
+            { "definitionId": "width", "value": 25, "source": "user" }
+          ],
+          "interfaceFeatures": [],
+          "keywords": []
+        }
+      ],
+      "printSettings": [
+        { "definitionId": "clearance", "value": 0.3, "source": "computed" }
+      ]
+    },
+    "plan": {
+      "function": "generation",
+      "generationBrief": "A crank handle with a 200 mm arm and a 25 mm square socket for a hand pump shaft.",
+      "riskLabel": "needs expert review",
+      "reason": "No library design is a crank handle, and the part carries load, so generation with expert review is the plan."
+    }
+  }
+}

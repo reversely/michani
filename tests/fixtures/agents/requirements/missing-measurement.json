@@ -1,0 +1,16 @@
+{
+  "request": "Clip a solar panel to a 40 mm timber rail.",
+  "measurements": {},
+  "response": {
+    "kind": "question",
+    "missing": [
+      {
+        "attributeId": "thickness",
+        "name": "Thickness",
+        "unit": "mm",
+        "reason": "The clip jaw must match the panel frame thickness."
+      }
+    ],
+    "question": "What is the thickness of the solar panel frame, in mm?"
+  }
+}

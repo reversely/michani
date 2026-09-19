@@ -35,9 +35,12 @@ import { Route as LayoutSubscriptionRouteImport } from './routes/_layout/subscri
 import { Route as LayoutAuthRouteImport } from './routes/_layout/_auth';
 import { Route as LayoutSplatRouteImport } from './routes/_layout/$';
 import { Route as ApiJacksonPollockSplatRouteImport } from './routes/api/jackson-pollock/$';
+import { Route as ApiDemoRequirementsRouteImport } from './routes/api/demo/requirements';
+import { Route as ApiDemoConfirmPlanRouteImport } from './routes/api/demo/confirm-plan';
 import { Route as LayoutShareIdRouteImport } from './routes/_layout/share/$id';
 import { Route as LayoutAuthSettingsRouteImport } from './routes/_layout/_auth/settings';
 import { Route as LayoutAuthHistoryRouteImport } from './routes/_layout/_auth/history';
+import { Route as LayoutAuthDemoRouteImport } from './routes/_layout/_auth/demo';
 import { Route as ApiInternalAccountDeleteRouteImport } from './routes/api/internal/account/delete';
 import { Route as LayoutAuthEditorIdRouteImport } from './routes/_layout/_auth/editor/$id';
 
@@ -169,6 +172,16 @@ const ApiJacksonPollockSplatRoute = ApiJacksonPollockSplatRouteImport.update({
   path: '/api/jackson-pollock/$',
   getParentRoute: () => rootRouteImport,
 } as any);
+const ApiDemoRequirementsRoute = ApiDemoRequirementsRouteImport.update({
+  id: '/api/demo/requirements',
+  path: '/api/demo/requirements',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ApiDemoConfirmPlanRoute = ApiDemoConfirmPlanRouteImport.update({
+  id: '/api/demo/confirm-plan',
+  path: '/api/demo/confirm-plan',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const LayoutShareIdRoute = LayoutShareIdRouteImport.update({
   id: '/share/$id',
   path: '/share/$id',
@@ -182,6 +195,11 @@ const LayoutAuthSettingsRoute = LayoutAuthSettingsRouteImport.update({
 const LayoutAuthHistoryRoute = LayoutAuthHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => LayoutAuthRoute,
+} as any);
+const LayoutAuthDemoRoute = LayoutAuthDemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => LayoutAuthRoute,
 } as any);
 const ApiInternalAccountDeleteRoute =
@@ -220,9 +238,12 @@ export interface FileRoutesByFullPath {
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
   '/api/title-generator': typeof ApiTitleGeneratorRoute;
   '/assets/$': typeof AssetsSplatRoute;
+  '/demo': typeof LayoutAuthDemoRoute;
   '/history': typeof LayoutAuthHistoryRoute;
   '/settings': typeof LayoutAuthSettingsRoute;
   '/share/$id': typeof LayoutShareIdRoute;
+  '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -251,9 +272,12 @@ export interface FileRoutesByTo {
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
   '/api/title-generator': typeof ApiTitleGeneratorRoute;
   '/assets/$': typeof AssetsSplatRoute;
+  '/demo': typeof LayoutAuthDemoRoute;
   '/history': typeof LayoutAuthHistoryRoute;
   '/settings': typeof LayoutAuthSettingsRoute;
   '/share/$id': typeof LayoutShareIdRoute;
+  '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -285,9 +309,12 @@ export interface FileRoutesById {
   '/api/title-generator': typeof ApiTitleGeneratorRoute;
   '/assets/$': typeof AssetsSplatRoute;
   '/_layout/': typeof LayoutIndexRoute;
+  '/_layout/_auth/demo': typeof LayoutAuthDemoRoute;
   '/_layout/_auth/history': typeof LayoutAuthHistoryRoute;
   '/_layout/_auth/settings': typeof LayoutAuthSettingsRoute;
   '/_layout/share/$id': typeof LayoutShareIdRoute;
+  '/api/demo/confirm-plan': typeof ApiDemoConfirmPlanRoute;
+  '/api/demo/requirements': typeof ApiDemoRequirementsRoute;
   '/api/jackson-pollock/$': typeof ApiJacksonPollockSplatRoute;
   '/_layout/_auth/editor/$id': typeof LayoutAuthEditorIdRoute;
   '/api/internal/account/delete': typeof ApiInternalAccountDeleteRoute;
@@ -318,9 +345,12 @@ export interface FileRouteTypes {
     | '/api/prompt-generator'
     | '/api/title-generator'
     | '/assets/$'
+    | '/demo'
     | '/history'
     | '/settings'
     | '/share/$id'
+    | '/api/demo/confirm-plan'
+    | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete';
@@ -349,9 +379,12 @@ export interface FileRouteTypes {
     | '/api/prompt-generator'
     | '/api/title-generator'
     | '/assets/$'
+    | '/demo'
     | '/history'
     | '/settings'
     | '/share/$id'
+    | '/api/demo/confirm-plan'
+    | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
     | '/editor/$id'
     | '/api/internal/account/delete';
@@ -382,9 +415,12 @@ export interface FileRouteTypes {
     | '/api/title-generator'
     | '/assets/$'
     | '/_layout/'
+    | '/_layout/_auth/demo'
     | '/_layout/_auth/history'
     | '/_layout/_auth/settings'
     | '/_layout/share/$id'
+    | '/api/demo/confirm-plan'
+    | '/api/demo/requirements'
     | '/api/jackson-pollock/$'
     | '/_layout/_auth/editor/$id'
     | '/api/internal/account/delete';
@@ -412,6 +448,8 @@ export interface RootRouteChildren {
   ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute;
   ApiTitleGeneratorRoute: typeof ApiTitleGeneratorRoute;
   AssetsSplatRoute: typeof AssetsSplatRoute;
+  ApiDemoConfirmPlanRoute: typeof ApiDemoConfirmPlanRoute;
+  ApiDemoRequirementsRoute: typeof ApiDemoRequirementsRoute;
   ApiJacksonPollockSplatRoute: typeof ApiJacksonPollockSplatRoute;
   ApiInternalAccountDeleteRoute: typeof ApiInternalAccountDeleteRoute;
 }
@@ -600,6 +638,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiJacksonPollockSplatRouteImport;
       parentRoute: typeof rootRouteImport;
     };
+    '/api/demo/requirements': {
+      id: '/api/demo/requirements';
+      path: '/api/demo/requirements';
+      fullPath: '/api/demo/requirements';
+      preLoaderRoute: typeof ApiDemoRequirementsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/api/demo/confirm-plan': {
+      id: '/api/demo/confirm-plan';
+      path: '/api/demo/confirm-plan';
+      fullPath: '/api/demo/confirm-plan';
+      preLoaderRoute: typeof ApiDemoConfirmPlanRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/_layout/share/$id': {
       id: '/_layout/share/$id';
       path: '/share/$id';
@@ -621,6 +673,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAuthHistoryRouteImport;
       parentRoute: typeof LayoutAuthRoute;
     };
+    '/_layout/_auth/demo': {
+      id: '/_layout/_auth/demo';
+      path: '/demo';
+      fullPath: '/demo';
+      preLoaderRoute: typeof LayoutAuthDemoRouteImport;
+      parentRoute: typeof LayoutAuthRoute;
+    };
     '/api/internal/account/delete': {
       id: '/api/internal/account/delete';
       path: '/api/internal/account/delete';
@@ -639,12 +698,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface LayoutAuthRouteChildren {
+  LayoutAuthDemoRoute: typeof LayoutAuthDemoRoute;
   LayoutAuthHistoryRoute: typeof LayoutAuthHistoryRoute;
   LayoutAuthSettingsRoute: typeof LayoutAuthSettingsRoute;
   LayoutAuthEditorIdRoute: typeof LayoutAuthEditorIdRoute;
 }
 
 const LayoutAuthRouteChildren: LayoutAuthRouteChildren = {
+  LayoutAuthDemoRoute: LayoutAuthDemoRoute,
   LayoutAuthHistoryRoute: LayoutAuthHistoryRoute,
   LayoutAuthSettingsRoute: LayoutAuthSettingsRoute,
   LayoutAuthEditorIdRoute: LayoutAuthEditorIdRoute,
@@ -695,6 +756,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPromptGeneratorRoute: ApiPromptGeneratorRoute,
   ApiTitleGeneratorRoute: ApiTitleGeneratorRoute,
   AssetsSplatRoute: AssetsSplatRoute,
+  ApiDemoConfirmPlanRoute: ApiDemoConfirmPlanRoute,
+  ApiDemoRequirementsRoute: ApiDemoRequirementsRoute,
   ApiJacksonPollockSplatRoute: ApiJacksonPollockSplatRoute,
   ApiInternalAccountDeleteRoute: ApiInternalAccountDeleteRoute,
 };
