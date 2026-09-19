@@ -181,36 +181,73 @@ export async function executeSession(
   };
 
   if (plan.function === 'generation') {
-    const started = Date.now();
-    const generated = await cadam().generate(
-      plan.generationBrief ?? specification.purpose ?? '',
-      model,
-    );
-    const design = {
-      ...designFromGeneratedCode({
-        id: `generated-${session.id.slice(0, 8)}`,
-        title: generated.title,
-        code: generated.code,
-        conversationId: session.id,
-        attributes,
-      }),
-      scad: generated.code,
-    };
-    // A generated design's own defaults are its values; the tool registry must know the design
-    // for the render tool, so it is registered into the in-memory library index for this run.
-    library().designs.push(design);
-    const values = Object.fromEntries(
-      design.parameters.map((p) => [p.variable, p.default]),
-    );
-    const { ok, attempt } = await verify(design, values, 1, started);
+    // Up to MAX_ATTEMPTS generations (issue #16). Each retry receives the failed verdicts, and
+    // the warned verdicts that carry a suggested revision, as a delimited feedback block.
+    const brief = plan.generationBrief ?? specification.purpose ?? '';
+    let feedback: string[] = [];
+    let last:
+      | {
+          design: DesignEntry & { scad: string };
+          values: Record<string, number>;
+          verification?: VerificationRun;
+        }
+      | undefined;
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+      const started = Date.now();
+      const generated = await cadam().generate(
+        generationBriefWithFeedback(
+          brief,
+          specification.requirements,
+          feedback,
+        ),
+        model,
+      );
+      const design = {
+        ...designFromGeneratedCode({
+          id: `generated-${session.id.slice(0, 8)}-${i}`,
+          title: generated.title,
+          code: generated.code,
+          conversationId: session.id,
+          attributes,
+        }),
+        scad: generated.code,
+      };
+      // The render tool looks designs up by id, so the generated one joins the in-memory index.
+      library().designs.push(design);
+      const values = Object.fromEntries(
+        design.parameters.map((p) => [p.variable, p.default]),
+      );
+      const { ok, attempt } = await verify(design, values, i, started);
+      last = { design, values, verification: attempt.verification };
+      const revisable =
+        attempt.verification?.warned.filter((v) => v.suggestedRevision) ?? [];
+      if (ok && revisable.length === 0)
+        return finish(
+          design,
+          values,
+          true,
+          attempt.verification,
+          'The generated design passed every agent.',
+        );
+      if (ok && i === MAX_ATTEMPTS)
+        return finish(
+          design,
+          values,
+          true,
+          attempt.verification,
+          `The generated design passed every agent with ${revisable.length} warning(s) still open after ${i} attempts.`,
+        );
+      feedback = [...(attempt.verification?.failed ?? []), ...revisable].map(
+        (v) =>
+          `${v.agentId} (${v.result}): ${v.finding}${v.suggestedRevision ? ` Suggested revision: ${v.suggestedRevision}` : ''}`,
+      );
+    }
     return finish(
-      design,
-      values,
-      ok,
-      attempt.verification,
-      ok
-        ? 'The generated design passed every agent.'
-        : `The generated design failed ${attempt.verification?.failed.length} agent verdict(s).`,
+      last!.design,
+      last!.values,
+      false,
+      last!.verification,
+      `The generated design still failed after ${attempts.length} attempts. ${last!.verification?.failed.map((v) => v.finding).join(' ') ?? ''}`.trim(),
     );
   }
 
@@ -265,4 +302,18 @@ export async function executeSession(
     lastVerification,
     `Stopped after ${attempts.length} attempts. ${lastVerification?.failed.map((v) => v.finding).join(' ') ?? ''}`.trim(),
   );
+}
+
+// The brief for a regeneration: the original brief and requirements, then the verdicts from
+// the previous attempt inside a feedback block that the prompt treats as data to act on.
+export function generationBriefWithFeedback(
+  brief: string,
+  requirements: string[],
+  feedback: string[],
+): string {
+  const base = [brief, ...requirements.map((r, i) => `${i + 1}. ${r}`)].join(
+    '\n',
+  );
+  if (feedback.length === 0) return base;
+  return `${base}\n<feedback>\nThe previous attempt was verified and these verdicts must be resolved in this attempt:\n${feedback.map((f) => `- ${f.replace(/<\/?feedback>/g, '')}`).join('\n')}\n</feedback>`;
 }
