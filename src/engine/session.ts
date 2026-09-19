@@ -28,6 +28,15 @@ export const turnSchema = z
   .strict();
 export type Turn = z.infer<typeof turnSchema>;
 
+export const workspaceSchema = z
+  .object({
+    pinned: z.boolean().default(false),
+    title: z.string().min(1).max(80).optional(),
+    archived: z.boolean().default(false),
+  })
+  .strict();
+export type Workspace = z.infer<typeof workspaceSchema>;
+
 export const sessionSchema = z
   .object({
     id: z.string().uuid(),
@@ -38,6 +47,9 @@ export const sessionSchema = z
     // Opaque results from later states (loop outcome, report); typed by their producers.
     execution: z.unknown().optional(),
     report: z.unknown().optional(),
+    // How the person filed this part in the workspace (issue #22): a pin, a name of their
+    // own, and whether it sits in the archive. Absent means unfiled.
+    workspace: workspaceSchema.default({}),
   })
   .strict();
 export type Session = z.infer<typeof sessionSchema>;

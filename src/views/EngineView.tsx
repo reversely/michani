@@ -104,8 +104,33 @@ const summarySchema = z.object({
   state: z.string(),
   updatedAt: z.string(),
   turns: z.number(),
+  ok: z.boolean().optional(),
+  pinned: z.boolean().default(false),
+  archived: z.boolean().default(false),
 });
 type SessionSummary = z.infer<typeof summarySchema>;
+
+// The spaces a part is filed into (issue #22). The state machine decides the first three; the
+// person decides the archive. The hue is the status colour the space's rows carry.
+type SpaceId = 'progress' | 'ready' | 'attention' | 'archived';
+const SPACES: Array<{ id: SpaceId; label: string; hue: string }> = [
+  { id: 'progress', label: 'In progress', hue: 'var(--accent)' },
+  { id: 'ready', label: 'Ready', hue: 'var(--ok)' },
+  { id: 'attention', label: 'Needs attention', hue: 'var(--fail)' },
+  { id: 'archived', label: 'Archived', hue: 'var(--ink-meta)' },
+];
+
+function spaceOf(s: SessionSummary): SpaceId {
+  if (s.archived) return 'archived';
+  if (s.state !== 'executed' && s.state !== 'reported') return 'progress';
+  return s.ok ? 'ready' : 'attention';
+}
+
+// Pinned first, then most recent.
+function byPinThenDate(a: SessionSummary, b: SessionSummary): number {
+  if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+  return b.updatedAt.localeCompare(a.updatedAt);
+}
 
 type Theme = 'light' | 'dark' | 'system';
 const THEME_KEY = 'michani-theme';
@@ -173,6 +198,9 @@ export function EngineView() {
   const [elapsed, setElapsed] = useState<number>();
   const [railOpen, setRailOpen] = useState(true);
   const [navOpen, setNavOpen] = useState(false);
+  const [view, setView] = useState<'home' | 'part'>('home');
+  const [space, setSpace] = useState<SpaceId>('progress');
+  const [renaming, setRenaming] = useState<string>();
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -218,6 +246,7 @@ export function EngineView() {
       const data = (await r.json()) as { session: unknown };
       setSession(sessionSchema.parse(data.session));
       setSessionId(id);
+      setView('part');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -230,7 +259,31 @@ export function EngineView() {
     setError(undefined);
     setElapsed(undefined);
     setNavOpen(false);
+    setView('part');
   }, []);
+
+  // Files a part: pin, rename, or archive. The list refreshes from the server so the row
+  // moves to its new space with the saved values, never with optimistic ones.
+  const file = useCallback(
+    async (
+      id: string,
+      workspace: { pinned?: boolean; title?: string; archived?: boolean },
+    ) => {
+      setError(undefined);
+      try {
+        const r = await fetch(apiUrl('engine/session'), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, workspace }),
+        });
+        if (!r.ok) throw new Error('The change could not be saved');
+        await refreshSessions();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [refreshSessions],
+  );
 
   const send = useCallback(
     async (message: string) => {
@@ -289,14 +342,17 @@ export function EngineView() {
       }))
     : undefined;
 
-  const grouped = sessions.reduce<Record<string, SessionSummary[]>>(
-    (acc, s) => {
-      const key = dayLabel(s.updatedAt);
-      (acc[key] ??= []).push(s);
+  const bySpace = SPACES.reduce<Record<SpaceId, SessionSummary[]>>(
+    (acc, sp) => {
+      acc[sp.id] = sessions
+        .filter((s) => spaceOf(s) === sp.id)
+        .sort(byPinThenDate);
       return acc;
     },
-    {},
+    { progress: [], ready: [], attention: [], archived: [] },
   );
+  const inSpace = bySpace[space];
+  const current = sessions.find((s) => s.id === sessionId);
 
   const surface = {
     background: 'var(--surface)',
@@ -348,55 +404,172 @@ export function EngineView() {
         >
           New part
         </button>
-        <div className="flex flex-1 flex-col gap-3 text-sm">
-          <p
-            className="text-xs uppercase tracking-wide"
-            style={{ color: 'var(--ink-meta)' }}
-          >
-            Sessions
-          </p>
-          {sessions.length === 0 && (
-            <p style={{ color: 'var(--ink-meta)' }}>
-              Nothing yet. Describe a part to start one.
+        <ul className="flex flex-col gap-0.5 text-sm" aria-label="Spaces">
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                setView('home');
+                setNavOpen(false);
+              }}
+              aria-current={view === 'home' ? 'page' : undefined}
+              className="ws-press flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left"
+              style={{
+                background:
+                  view === 'home' ? 'var(--surface-2)' : 'transparent',
+                color: 'var(--ink)',
+              }}
+            >
+              Home
+            </button>
+          </li>
+          {SPACES.map((sp) => (
+            <li key={sp.id}>
+              <button
+                type="button"
+                onClick={() => setSpace(sp.id)}
+                aria-pressed={space === sp.id}
+                className="ws-press flex w-full items-center justify-between rounded-md px-3 py-1.5 text-left"
+                style={{
+                  background:
+                    space === sp.id ? 'var(--surface-2)' : 'transparent',
+                  color: 'var(--ink)',
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ background: sp.hue }}
+                  />
+                  {sp.label}
+                </span>
+                <span className="text-xs" style={{ color: 'var(--ink-meta)' }}>
+                  {bySpace[sp.id].length}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div
+          className="flex flex-1 flex-col gap-1 border-t pt-3 text-sm"
+          style={{ borderColor: 'var(--line)' }}
+        >
+          {inSpace.length === 0 && (
+            <p className="px-3" style={{ color: 'var(--ink-meta)' }}>
+              {space === 'progress'
+                ? 'No part in progress'
+                : `Nothing in ${SPACES.find((sp) => sp.id === space)!.label.toLowerCase()}`}
             </p>
           )}
-          {Object.entries(grouped).map(([day, list]) => (
-            <div key={day} className="flex flex-col gap-1">
-              <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
-                {day}
-              </p>
-              <ul className="flex flex-col gap-1">
-                {list.map((s) => (
-                  <li key={s.id}>
+          <ul className="flex flex-col gap-0.5">
+            {inSpace.map((s) => {
+              const open = s.id === sessionId && view === 'part';
+              return (
+                <li key={s.id} className="ws-enter">
+                  {renaming === s.id ? (
+                    <input
+                      autoFocus
+                      aria-label="Part name"
+                      defaultValue={s.title}
+                      maxLength={80}
+                      className="w-full rounded-md px-3 py-2 text-sm outline-none"
+                      style={{
+                        background: 'var(--surface-2)',
+                        color: 'var(--ink)',
+                        border: '1px solid var(--accent)',
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setRenaming(undefined);
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                      onBlur={(e) => {
+                        const title = e.currentTarget.value.trim();
+                        setRenaming(undefined);
+                        if (title && title !== s.title)
+                          void file(s.id, { title });
+                      }}
+                    />
+                  ) : (
                     <button
                       type="button"
                       onClick={() => void openSession(s.id)}
-                      aria-current={s.id === sessionId ? 'true' : undefined}
+                      aria-current={open ? 'true' : undefined}
                       className="ws-press w-full rounded-md px-3 py-2 text-left"
                       style={{
-                        background:
-                          s.id === sessionId
-                            ? 'var(--accent-soft)'
-                            : 'transparent',
+                        background: open ? 'var(--accent-soft)' : 'transparent',
                         color: 'var(--ink)',
                       }}
                     >
-                      <span className="block truncate">
-                        {s.title || 'Untitled part'}
+                      <span className="flex items-center gap-2">
+                        <span className="block flex-1 truncate">
+                          {s.title || 'Untitled part'}
+                        </span>
+                        {s.pinned && (
+                          <span
+                            className="rounded px-1 text-[10px] uppercase tracking-wide"
+                            style={{
+                              background: 'var(--surface-2)',
+                              color: 'var(--ink-meta)',
+                            }}
+                          >
+                            pinned
+                          </span>
+                        )}
                       </span>
                       <span
                         className="block text-xs"
                         style={{ color: 'var(--ink-meta)' }}
                       >
-                        {STATE_LABEL[s.state] ?? s.state}, {s.turns} turn
-                        {s.turns === 1 ? '' : 's'}
+                        {STATE_LABEL[s.state] ?? s.state},{' '}
+                        {dayLabel(s.updatedAt)}
                       </span>
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                  )}
+                  {open && renaming !== s.id && (
+                    <div
+                      className="ws-enter flex gap-1 px-2 pb-1 pt-0.5 text-xs"
+                      aria-label="Part actions"
+                    >
+                      {(
+                        [
+                          [s.pinned ? 'Unpin' : 'Pin', { pinned: !s.pinned }],
+                          ['Rename', undefined],
+                          [
+                            s.archived ? 'Restore' : 'Archive',
+                            { archived: !s.archived },
+                          ],
+                        ] as Array<
+                          [
+                            string,
+                            (
+                              | { pinned?: boolean; archived?: boolean }
+                              | undefined
+                            ),
+                          ]
+                        >
+                      ).map(([label, patch]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() =>
+                            patch ? void file(s.id, patch) : setRenaming(s.id)
+                          }
+                          className="ws-press rounded px-2 py-1"
+                          style={{
+                            background: 'var(--surface-2)',
+                            color: 'var(--ink-dim)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
         <div
           className="flex flex-col gap-2 border-t pt-3 text-sm"
@@ -445,326 +618,434 @@ export function EngineView() {
         />
       )}
 
-      <section
-        aria-label="Conversation"
-        className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0"
-        style={{ background: 'var(--field)' }}
-      >
-        <header
-          className="flex items-center justify-between gap-3 px-4 py-3 lg:px-6"
-          style={{ borderBottom: '1px solid var(--line)' }}
+      {view === 'home' ? (
+        <main
+          aria-label="Overview"
+          className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-6 pt-14 lg:px-8 lg:pt-6"
         >
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">
-              {spec?.summary ?? 'Printed part from a conversation'}
-            </h1>
-            <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
-              {session
-                ? (STATE_LABEL[session.state] ?? session.state)
-                : 'new session'}
-              {elapsed !== undefined
-                ? `, last turn ${(elapsed / 1000).toFixed(1)} s`
-                : ''}
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-pressed={railOpen}
-            onClick={() => setRailOpen((v) => !v)}
-            className="ws-press shrink-0 rounded-md px-3 py-1.5 text-sm"
-            style={{ ...surface, color: 'var(--ink-dim)' }}
-          >
-            {railOpen ? 'Hide details' : 'Show details'}
-          </button>
-        </header>
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-4 text-sm lg:px-6">
-          {!session && (
-            <p
-              className="ws-enter max-w-xl"
-              style={{ color: 'var(--ink-dim)' }}
-            >
-              Describe the part you need, in your own words. The assistant
-              reasons over it, looks up references, states its assumptions,
-              proposes a plan, and after you confirm it drafts, renders, and
-              verifies the part.
-            </p>
-          )}
-          {session?.transcript.map((t, i) => (
-            <p
-              key={`${i}-${t.at}`}
-              className={`ws-enter max-w-[42rem] rounded-lg px-3 py-2 ${t.role === 'user' ? 'self-end' : 'self-start'}`}
-              style={{
-                background:
-                  t.role === 'user'
-                    ? 'var(--bubble-person)'
-                    : 'var(--bubble-assistant)',
-                border:
-                  t.role === 'user'
-                    ? '1px solid transparent'
-                    : '1px solid var(--line)',
-              }}
-            >
-              {t.text}
-            </p>
-          ))}
-          {busy && (
-            <p
-              className="ws-enter self-start px-3 py-2"
-              style={{ color: 'var(--ink-meta)' }}
-            >
-              Working
-            </p>
-          )}
-          {error && (
-            <p
-              role="alert"
-              className="ws-enter"
-              style={{ color: 'var(--fail)' }}
-            >
-              {error}
-            </p>
-          )}
-          <div ref={endRef} />
-        </div>
-        <form
-          className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-end lg:px-6"
-          style={{
-            borderTop: '1px solid var(--line)',
-            background: 'var(--surface)',
-          }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send(draft);
-          }}
-        >
-          <label htmlFor="engine-message" className="sr-only">
-            Message
-          </label>
-          <textarea
-            id="engine-message"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={2}
-            className="min-h-[3rem] flex-1 resize-y rounded-md px-3 py-2 text-sm outline-none"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--ink)',
-              border: '1px solid var(--line)',
-            }}
-            placeholder={
-              session?.state === 'planned'
-                ? 'Type yes to confirm the plan, or say what to change'
-                : 'Describe the part'
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send(draft);
-              }
-            }}
-          />
-          <div className="flex gap-2">
-            {session?.state === 'planned' && !busy && (
-              <button
-                type="button"
-                onClick={() => void send('yes')}
-                className="ws-press rounded-md px-3 py-2 text-sm"
-                style={{
-                  background: 'var(--accent-soft)',
-                  color: 'var(--accent)',
-                }}
-              >
-                Confirm plan
-              </button>
-            )}
+          <div className="ws-enter flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-semibold">Workspace</h1>
+              <p className="text-sm" style={{ color: 'var(--ink-meta)' }}>
+                {sessions.length} part{sessions.length === 1 ? '' : 's'}
+              </p>
+            </div>
             <button
-              type="submit"
-              disabled={busy || draft.trim().length === 0}
-              className="ws-press rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+              type="button"
+              onClick={newSession}
+              className="ws-press rounded-md px-3 py-2 text-sm font-medium"
               style={{
                 background: 'var(--accent)',
                 color: 'var(--accent-ink)',
               }}
             >
-              Send
+              New part
             </button>
           </div>
-        </form>
-      </section>
-
-      <aside
-        aria-label="Specification and results"
-        aria-hidden={!railOpen}
-        className={`ws-move flex-col gap-4 overflow-y-auto ${railOpen ? 'flex w-full shrink-0 p-4 lg:w-[26rem]' : 'hidden w-0 p-0 opacity-0'}`}
-        style={{
-          background: 'var(--surface)',
-          borderTop: '1px solid var(--line)',
-        }}
-      >
-        <section className="rounded-lg p-4 text-sm" style={card}>
-          <h2 className="mb-2 font-semibold">Specification</h2>
-          {spec?.summary && <p className="mb-2">{spec.summary}</p>}
-          <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1">
-            <dt style={{ color: 'var(--ink-meta)' }}>Size</dt>
-            <dd
-              style={{
-                color:
-                  spec && sizeText(spec) ? 'var(--ink)' : 'var(--ink-meta)',
-              }}
-            >
-              {spec && sizeText(spec) ? sizeText(spec) : 'not yet known'}
-            </dd>
-            <dt style={{ color: 'var(--ink-meta)' }}>Material</dt>
-            <dd
-              style={{
-                color: spec?.material ? 'var(--ink)' : 'var(--ink-meta)',
-              }}
-            >
-              {spec?.material ?? 'not yet known'}
-            </dd>
-          </dl>
-          <label
-            htmlFor="engine-details"
-            className="mt-3 block"
-            style={{ color: 'var(--ink-meta)' }}
-          >
-            Details, in your words
-          </label>
-          <textarea
-            id="engine-details"
-            value={detailsDraft ?? spec?.details ?? ''}
-            onChange={(e) => setDetailsDraft(e.target.value)}
-            onBlur={() => {
-              if (
-                detailsDraft !== undefined &&
-                detailsDraft.trim() &&
-                detailsDraft !== spec?.details
-              )
-                void send(`Details: ${detailsDraft.trim()}`);
-              setDetailsDraft(undefined);
-            }}
-            rows={3}
-            className="mt-1 w-full resize-y rounded-md px-3 py-2 text-sm outline-none"
-            style={{
-              background: 'var(--surface-2)',
-              color: 'var(--ink)',
-              border: '1px solid var(--line)',
-            }}
-            placeholder="A style reference, colours per part, how it is used"
-          />
-          {spec && spec.sections.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-2">
-              {spec.sections.map((sec, i) => (
-                <li key={i} className="ws-enter">
-                  <p>
-                    <span className="font-medium">{sec.heading}</span>{' '}
-                    <span
-                      className="rounded px-1.5 py-0.5 text-xs"
-                      style={{
-                        background: 'var(--surface-2)',
-                        color: 'var(--ink-meta)',
-                      }}
-                    >
-                      {sec.status}
-                    </span>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {SPACES.map((sp, i) => (
+              <section
+                key={sp.id}
+                aria-label={sp.label}
+                className="ws-enter flex flex-col gap-2 rounded-lg p-4 text-sm"
+                style={{
+                  ...surface,
+                  borderTop: `3px solid ${sp.hue}`,
+                  animationDelay: `${i * 40}ms`,
+                }}
+              >
+                <div className="flex items-baseline justify-between">
+                  <h2 className="font-semibold">{sp.label}</h2>
+                  <span className="text-2xl font-semibold tabular-nums">
+                    {bySpace[sp.id].length}
+                  </span>
+                </div>
+                {bySpace[sp.id].length === 0 ? (
+                  <p style={{ color: 'var(--ink-meta)' }}>
+                    {sp.id === 'progress'
+                      ? 'Describe a part to start one'
+                      : 'Nothing here yet'}
                   </p>
-                  <p style={{ color: 'var(--ink-dim)' }}>{sec.content}</p>
-                  {sec.source && (
-                    <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
-                      {sec.source}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {session?.plan && (
-          <section className="ws-enter rounded-lg p-4 text-sm" style={card}>
-            <h2 className="mb-2 font-semibold">
-              Plan{session.plan.confirmed ? ' (confirmed)' : ''}
-            </h2>
-            <p>
-              {session.plan.function === 'adaptation'
-                ? `Adapt library design "${session.plan.candidateDesignId}".`
-                : 'Generate a new design.'}{' '}
-              Risk label: {session.plan.riskLabel}.
-            </p>
-            <p style={{ color: 'var(--ink-dim)' }}>{session.plan.reason}</p>
-          </section>
-        )}
-
-        {exec && (
-          <section className="ws-enter rounded-lg p-4 text-sm" style={card}>
-            <h2 className="mb-2 font-semibold">Result</h2>
-            <p>{exec.message}</p>
-            <p style={{ color: 'var(--ink-dim)' }}>
-              {exec.designName} ({exec.source}, evidence level{' '}
-              {exec.evidenceLevel}, risk label {exec.riskLabel}),{' '}
-              {exec.attempts.length} attempt
-              {exec.attempts.length === 1 ? '' : 's'}
-            </p>
-            <ul className="mt-2 flex flex-col gap-2">
-              {exec.verification?.verdicts.map((v) => (
-                <li key={v.agentId}>
-                  <p>
-                    <span
-                      className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
-                      style={{
-                        background:
-                          v.result === 'fail'
-                            ? 'var(--fail)'
-                            : v.result === 'warn'
-                              ? 'var(--warn)'
-                              : 'var(--ok)',
-                      }}
-                      aria-hidden
-                    />
-                    {v.agentId}: {v.result}. {v.finding}
-                    {v.suggestedRevision
-                      ? ` Suggested revision: ${v.suggestedRevision}`
-                      : ''}
-                  </p>
-                  <details
-                    className="text-xs"
-                    style={{ color: 'var(--ink-meta)' }}
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {bySpace[sp.id].slice(0, 3).map((s) => (
+                      <li key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => void openSession(s.id)}
+                          className="ws-press w-full rounded-md px-2 py-1.5 text-left"
+                          style={{ background: 'var(--field)' }}
+                        >
+                          <span className="block truncate">
+                            {s.title || 'Untitled part'}
+                          </span>
+                          <span
+                            className="block text-xs"
+                            style={{ color: 'var(--ink-meta)' }}
+                          >
+                            {STATE_LABEL[s.state] ?? s.state},{' '}
+                            {dayLabel(s.updatedAt)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {bySpace[sp.id].length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSpace(sp.id);
+                      setNavOpen(true);
+                    }}
+                    className="ws-press self-start rounded px-2 py-1 text-xs"
+                    style={{ color: 'var(--accent)' }}
                   >
-                    <summary>
-                      {v.evidence.length} tool call
-                      {v.evidence.length === 1 ? '' : 's'} in {v.steps} steps
-                    </summary>
-                    <ul className="list-disc pl-5">
-                      {v.evidence.map((ev, i) => (
-                        <li key={i}>
-                          {ev.tool}: {JSON.stringify(ev.output)?.slice(0, 240)}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                </li>
+                    All {bySpace[sp.id].length}
+                  </button>
+                )}
+              </section>
+            ))}
+          </div>
+          {error && (
+            <p
+              role="alert"
+              className="ws-enter text-sm"
+              style={{ color: 'var(--fail)' }}
+            >
+              {error}
+            </p>
+          )}
+        </main>
+      ) : (
+        <>
+          <section
+            aria-label="Conversation"
+            className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0"
+            style={{ background: 'var(--field)' }}
+          >
+            <header
+              className="flex items-center justify-between gap-3 px-4 py-3 lg:px-6"
+              style={{ borderBottom: '1px solid var(--line)' }}
+            >
+              <div className="min-w-0">
+                <h1 className="truncate text-base font-semibold">
+                  {current?.title || spec?.summary || 'New part'}
+                </h1>
+                <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
+                  {session
+                    ? (STATE_LABEL[session.state] ?? session.state)
+                    : 'new session'}
+                  {elapsed !== undefined
+                    ? `, last turn ${(elapsed / 1000).toFixed(1)} s`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-pressed={railOpen}
+                onClick={() => setRailOpen((v) => !v)}
+                className="ws-press shrink-0 rounded-md px-3 py-1.5 text-sm"
+                style={{ ...surface, color: 'var(--ink-dim)' }}
+              >
+                {railOpen ? 'Hide details' : 'Show details'}
+              </button>
+            </header>
+            <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-4 text-sm lg:px-6">
+              {!session && (
+                <p
+                  className="ws-enter max-w-xl"
+                  style={{ color: 'var(--ink-dim)' }}
+                >
+                  Describe the part you need, in your own words. The assistant
+                  reasons over it, looks up references, states its assumptions,
+                  proposes a plan, and after you confirm it drafts, renders, and
+                  verifies the part.
+                </p>
+              )}
+              {session?.transcript.map((t, i) => (
+                <p
+                  key={`${i}-${t.at}`}
+                  className={`ws-enter max-w-[42rem] rounded-lg px-3 py-2 ${t.role === 'user' ? 'self-end' : 'self-start'}`}
+                  style={{
+                    background:
+                      t.role === 'user'
+                        ? 'var(--bubble-person)'
+                        : 'var(--bubble-assistant)',
+                    border:
+                      t.role === 'user'
+                        ? '1px solid transparent'
+                        : '1px solid var(--line)',
+                  }}
+                >
+                  {t.text}
+                </p>
               ))}
-              {exec.verification?.didNotRun.map((d) => (
-                <li key={d.agentId} style={{ color: 'var(--ink-meta)' }}>
-                  {d.agentId}: did not run, {d.reason}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {exec?.ok && exec.scad && params && (
-          <section className="ws-enter rounded-lg p-2" style={card}>
-            <div className="h-[340px] w-full overflow-hidden rounded-md">
-              <OpenSCADPreview
-                scadCode={exec.scad}
-                params={params}
-                color="#c8541f"
-              />
+              {busy && (
+                <p
+                  className="ws-enter self-start px-3 py-2"
+                  style={{ color: 'var(--ink-meta)' }}
+                >
+                  Working
+                </p>
+              )}
+              {error && (
+                <p
+                  role="alert"
+                  className="ws-enter"
+                  style={{ color: 'var(--fail)' }}
+                >
+                  {error}
+                </p>
+              )}
+              <div ref={endRef} />
             </div>
+            <form
+              className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-end lg:px-6"
+              style={{
+                borderTop: '1px solid var(--line)',
+                background: 'var(--surface)',
+              }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send(draft);
+              }}
+            >
+              <label htmlFor="engine-message" className="sr-only">
+                Message
+              </label>
+              <textarea
+                id="engine-message"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                className="min-h-[3rem] flex-1 resize-y rounded-md px-3 py-2 text-sm outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--line)',
+                }}
+                placeholder={
+                  session?.state === 'planned'
+                    ? 'Type yes to confirm the plan, or say what to change'
+                    : 'Describe the part'
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void send(draft);
+                  }
+                }}
+              />
+              <div className="flex gap-2">
+                {session?.state === 'planned' && !busy && (
+                  <button
+                    type="button"
+                    onClick={() => void send('yes')}
+                    className="ws-press rounded-md px-3 py-2 text-sm"
+                    style={{
+                      background: 'var(--accent-soft)',
+                      color: 'var(--accent)',
+                    }}
+                  >
+                    Confirm plan
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={busy || draft.trim().length === 0}
+                  className="ws-press rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  style={{
+                    background: 'var(--accent)',
+                    color: 'var(--accent-ink)',
+                  }}
+                >
+                  Send
+                </button>
+              </div>
+            </form>
           </section>
-        )}
-      </aside>
+
+          <aside
+            aria-label="Specification and results"
+            aria-hidden={!railOpen}
+            className={`ws-move flex-col gap-4 overflow-y-auto ${railOpen ? 'flex w-full shrink-0 p-4 lg:w-[26rem]' : 'hidden w-0 p-0 opacity-0'}`}
+            style={{
+              background: 'var(--surface)',
+              borderTop: '1px solid var(--line)',
+            }}
+          >
+            <section className="rounded-lg p-4 text-sm" style={card}>
+              <h2 className="mb-2 font-semibold">Specification</h2>
+              {spec?.summary && <p className="mb-2">{spec.summary}</p>}
+              <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1">
+                <dt style={{ color: 'var(--ink-meta)' }}>Size</dt>
+                <dd
+                  style={{
+                    color:
+                      spec && sizeText(spec) ? 'var(--ink)' : 'var(--ink-meta)',
+                  }}
+                >
+                  {spec && sizeText(spec) ? sizeText(spec) : 'not yet known'}
+                </dd>
+                <dt style={{ color: 'var(--ink-meta)' }}>Material</dt>
+                <dd
+                  style={{
+                    color: spec?.material ? 'var(--ink)' : 'var(--ink-meta)',
+                  }}
+                >
+                  {spec?.material ?? 'not yet known'}
+                </dd>
+              </dl>
+              <label
+                htmlFor="engine-details"
+                className="mt-3 block"
+                style={{ color: 'var(--ink-meta)' }}
+              >
+                Details, in your words
+              </label>
+              <textarea
+                id="engine-details"
+                value={detailsDraft ?? spec?.details ?? ''}
+                onChange={(e) => setDetailsDraft(e.target.value)}
+                onBlur={() => {
+                  if (
+                    detailsDraft !== undefined &&
+                    detailsDraft.trim() &&
+                    detailsDraft !== spec?.details
+                  )
+                    void send(`Details: ${detailsDraft.trim()}`);
+                  setDetailsDraft(undefined);
+                }}
+                rows={3}
+                className="mt-1 w-full resize-y rounded-md px-3 py-2 text-sm outline-none"
+                style={{
+                  background: 'var(--surface-2)',
+                  color: 'var(--ink)',
+                  border: '1px solid var(--line)',
+                }}
+                placeholder="A style reference, colours per part, how it is used"
+              />
+              {spec && spec.sections.length > 0 && (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {spec.sections.map((sec, i) => (
+                    <li key={i} className="ws-enter">
+                      <p>
+                        <span className="font-medium">{sec.heading}</span>{' '}
+                        <span
+                          className="rounded px-1.5 py-0.5 text-xs"
+                          style={{
+                            background: 'var(--surface-2)',
+                            color: 'var(--ink-meta)',
+                          }}
+                        >
+                          {sec.status}
+                        </span>
+                      </p>
+                      <p style={{ color: 'var(--ink-dim)' }}>{sec.content}</p>
+                      {sec.source && (
+                        <p
+                          className="text-xs"
+                          style={{ color: 'var(--ink-meta)' }}
+                        >
+                          {sec.source}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {session?.plan && (
+              <section className="ws-enter rounded-lg p-4 text-sm" style={card}>
+                <h2 className="mb-2 font-semibold">
+                  Plan{session.plan.confirmed ? ' (confirmed)' : ''}
+                </h2>
+                <p>
+                  {session.plan.function === 'adaptation'
+                    ? `Adapt library design "${session.plan.candidateDesignId}".`
+                    : 'Generate a new design.'}{' '}
+                  Risk label: {session.plan.riskLabel}.
+                </p>
+                <p style={{ color: 'var(--ink-dim)' }}>{session.plan.reason}</p>
+              </section>
+            )}
+
+            {exec && (
+              <section className="ws-enter rounded-lg p-4 text-sm" style={card}>
+                <h2 className="mb-2 font-semibold">Result</h2>
+                <p>{exec.message}</p>
+                <p style={{ color: 'var(--ink-dim)' }}>
+                  {exec.designName} ({exec.source}, evidence level{' '}
+                  {exec.evidenceLevel}, risk label {exec.riskLabel}),{' '}
+                  {exec.attempts.length} attempt
+                  {exec.attempts.length === 1 ? '' : 's'}
+                </p>
+                <ul className="mt-2 flex flex-col gap-2">
+                  {exec.verification?.verdicts.map((v) => (
+                    <li key={v.agentId}>
+                      <p>
+                        <span
+                          className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                          style={{
+                            background:
+                              v.result === 'fail'
+                                ? 'var(--fail)'
+                                : v.result === 'warn'
+                                  ? 'var(--warn)'
+                                  : 'var(--ok)',
+                          }}
+                          aria-hidden
+                        />
+                        {v.agentId}: {v.result}. {v.finding}
+                        {v.suggestedRevision
+                          ? ` Suggested revision: ${v.suggestedRevision}`
+                          : ''}
+                      </p>
+                      <details
+                        className="text-xs"
+                        style={{ color: 'var(--ink-meta)' }}
+                      >
+                        <summary>
+                          {v.evidence.length} tool call
+                          {v.evidence.length === 1 ? '' : 's'} in {v.steps}{' '}
+                          steps
+                        </summary>
+                        <ul className="list-disc pl-5">
+                          {v.evidence.map((ev, i) => (
+                            <li key={i}>
+                              {ev.tool}:{' '}
+                              {JSON.stringify(ev.output)?.slice(0, 240)}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    </li>
+                  ))}
+                  {exec.verification?.didNotRun.map((d) => (
+                    <li key={d.agentId} style={{ color: 'var(--ink-meta)' }}>
+                      {d.agentId}: did not run, {d.reason}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {exec?.ok && exec.scad && params && (
+              <section className="ws-enter rounded-lg p-2" style={card}>
+                <div className="h-[340px] w-full overflow-hidden rounded-md">
+                  <OpenSCADPreview
+                    scadCode={exec.scad}
+                    params={params}
+                    color="#c8541f"
+                  />
+                </div>
+              </section>
+            )}
+          </aside>
+        </>
+      )}
     </div>
   );
 }

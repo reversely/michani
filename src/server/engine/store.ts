@@ -6,18 +6,28 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 import { requiredEnv } from '@/server/env';
 import { createEngine, type Engine } from '@/engine/run';
-import { newSession, sessionSchema, type Session } from '@/engine/session';
+import {
+  newSession,
+  sessionSchema,
+  workspaceSchema,
+  type Session,
+  type Workspace,
+} from '@/engine/session';
 
-// Server-side home for engine sessions: one JSON file per UUID in a temp directory, no
-// account and no database. The engine itself is one per process.
+// Server-side home for engine sessions: one JSON file per UUID under the repository's
+// ignored .michani folder, no account and no database. The OS temp folder was the first home
+// and macOS cleared it between sessions, which emptied the workspace. The engine itself is
+// one per process.
 
-const dir = path.join(tmpdir(), 'michani-engine-sessions');
+export const sessionDir = path.resolve(
+  process.env.MICHANI_SESSION_DIR ?? '.michani/sessions',
+);
+const dir = sessionDir;
 const sessionId = z.string().uuid();
 let engine: Engine | null = null;
 
@@ -47,10 +57,30 @@ export type SessionSummary = {
   state: string;
   updatedAt: string;
   turns: number;
+  // Whether every verification agent passed; undefined until the part ran.
+  ok?: boolean;
+  pinned: boolean;
+  archived: boolean;
 };
 
+// Applies a partial filing change and returns the saved session. Unknown keys are refused by
+// the schema so a request cannot write arbitrary fields into the file.
+export function updateWorkspace(
+  id: string,
+  patch: Partial<Workspace>,
+): Session {
+  const session = loadSession(id);
+  const workspace = workspaceSchema.parse({
+    ...session.workspace,
+    ...patch,
+  });
+  const next = { ...session, workspace };
+  saveSession(next);
+  return next;
+}
+
 // The sidebar's session list: ids, titles, states, and times only. The title is the
-// specification summary when one exists, else the person's first message.
+// person's own name for the part, else the specification summary, else the first message.
 export function listSessions(limit = 50): SessionSummary[] {
   if (!existsSync(dir)) return [];
   const rows: SessionSummary[] = [];
@@ -62,12 +92,20 @@ export function listSessions(limit = 50): SessionSummary[] {
       const firstUser =
         session.transcript.find((t) => t.role === 'user')?.text ?? '';
       if (session.transcript.length === 0) continue;
+      const execution = session.execution as { ok?: boolean } | undefined;
       rows.push({
         id: session.id,
-        title: (session.specification.summary ?? firstUser).slice(0, 80),
+        title: (
+          session.workspace.title ??
+          session.specification.summary ??
+          firstUser
+        ).slice(0, 80),
         state: session.state,
         updatedAt: statSync(path.join(dir, file)).mtime.toISOString(),
         turns: session.transcript.length,
+        ok: execution?.ok,
+        pinned: session.workspace.pinned,
+        archived: session.workspace.archived,
       });
     } catch {
       // A file that fails to parse is not listed; it stays on disk for inspection.

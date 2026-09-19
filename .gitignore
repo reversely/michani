@@ -62,3 +62,6 @@ docs/progress/
 docs/plans/
 docs/prd*.md
 test-results/
+
+# Local engine sessions (the workspace store)
+.michani/
