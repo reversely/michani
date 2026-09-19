@@ -13,6 +13,7 @@ import type {
 // nothing here uses dangerouslySetInnerHTML.
 
 export type MissingMeasurement = {
+  parameterId: string;
   attributeId: string;
   name: string;
   unit: string;
@@ -23,7 +24,7 @@ type Props = {
   attributes: AttributeDefinition[];
   question?: { question: string; missing: MissingMeasurement[] };
   measurements: Record<string, number>;
-  onMeasurementChange: (attributeId: string, value: number | undefined) => void;
+  onMeasurementChange: (parameterId: string, value: number | undefined) => void;
   specification?: Specification;
   plan?: Plan;
   onConfirm: () => void;
@@ -47,6 +48,7 @@ export function MeasurementsPanel({
   const needed: MissingMeasurement[] =
     question?.missing ??
     plan?.measurementsNeeded.map((m) => ({
+      parameterId: m.parameterId,
       attributeId: m.attributeId,
       name: nameOf(m.attributeId),
       unit: m.unit,
@@ -74,26 +76,26 @@ export function MeasurementsPanel({
           <ul className="flex flex-col gap-3">
             {needed.map((m) => (
               <li
-                key={m.attributeId}
+                key={m.parameterId}
                 className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"
               >
                 <Label
-                  htmlFor={`measure-${m.attributeId}`}
+                  htmlFor={`measure-${m.parameterId}`}
                   className="sm:w-48 sm:shrink-0"
                 >
                   {m.name}
                   {m.unit ? ` (${m.unit})` : ''}
                 </Label>
                 <Input
-                  id={`measure-${m.attributeId}`}
+                  id={`measure-${m.parameterId}`}
                   type="number"
                   inputMode="decimal"
                   step="any"
                   className="sm:w-40"
-                  value={measurements[m.attributeId] ?? ''}
+                  value={measurements[m.parameterId] ?? ''}
                   onChange={(e) =>
                     onMeasurementChange(
-                      m.attributeId,
+                      m.parameterId,
                       e.target.value === ''
                         ? undefined
                         : Number(e.target.value),

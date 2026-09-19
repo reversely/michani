@@ -6,11 +6,12 @@
     "specification": {
       "requirements": ["The tweezers are 100 mm long."],
       "components": [],
-      "printSettings": [
-        { "definitionId": "length", "value": 100, "source": "user" },
-        { "definitionId": "width", "value": 4, "source": "user" },
-        { "definitionId": "thickness", "value": 2, "source": "user" },
-        { "definitionId": "gap", "value": 10, "source": "user" }
+      "printSettings": [],
+      "partMeasurements": [
+        {
+          "parameterId": "length",
+          "value": 100
+        }
       ]
     },
     "plan": {

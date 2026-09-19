@@ -48,6 +48,9 @@ const modelSpecificationSchema = z
           interfaceFeatures: componentRecordSchema.shape.interfaceFeatures,
         }),
     ),
+    partMeasurements: z
+      .array(z.object({ parameterId: z.string(), value: z.number() }).strict())
+      .default([]),
     printSettings: z.array(attributeValueSchema),
   })
   .strict();
@@ -62,39 +65,35 @@ const modelPlanSchema = z
   })
   .strict();
 
-export const requirementsOutputSchema = z.discriminatedUnion('kind', [
-  z
-    .object({
-      kind: z.literal('question'),
-      missing: z
-        .array(
-          z
-            .object({
-              attributeId: z.string(),
-              name: z.string(),
-              unit: z.string(),
-              reason: z.string(),
-            })
-            .strict(),
-        )
-        .min(1),
-      question: z.string().min(1),
-    })
-    .strict(),
-  z
-    .object({
-      kind: z.literal('specification'),
-      specification: modelSpecificationSchema,
-      plan: modelPlanSchema,
-    })
-    .strict(),
-]);
+const missingMeasurementSchema = z
+  .object({
+    parameterId: z.string(),
+    attributeId: z.string(),
+    name: z.string(),
+    unit: z.string(),
+    reason: z.string(),
+  })
+  .strict();
+
+// One flat object rather than a discriminated union: Anthropic's tool input schema must be a
+// JSON object at the top level, and a union compiles to a bare anyOf. `finaliseRequirements`
+// enforces which fields each kind requires.
+export const requirementsOutputSchema = z
+  .object({
+    kind: z.enum(['question', 'specification']),
+    missing: z.array(missingMeasurementSchema).optional(),
+    question: z.string().optional(),
+    specification: modelSpecificationSchema.optional(),
+    plan: modelPlanSchema.optional(),
+  })
+  .strict();
 export type RequirementsModelOutput = z.infer<typeof requirementsOutputSchema>;
 
 export type RequirementsResult =
   | {
       kind: 'question';
       missing: Array<{
+        parameterId: string;
         attributeId: string;
         name: string;
         unit: string;
@@ -107,7 +106,7 @@ export type RequirementsResult =
 export type RequirementsInput = {
   model: LanguageModel;
   request: string;
-  // Measurements the user already supplied through the panel, by attribute id.
+  // Measurements the user already supplied through the panel, by parameter id.
   measurements?: Record<string, number>;
   design: Pick<
     DesignEntry,
@@ -134,10 +133,11 @@ export function buildRequirementsPrompt(
     )
     .join('\n');
   const parameterLines = input.design.parameters
-    .map(
-      (p) =>
-        `- ${p.id} -> attribute ${p.attributeId}, limits ${p.min} to ${p.max}`,
-    )
+    .map((p) => {
+      const attr = input.attributes.find((a) => a.id === p.attributeId);
+      const unit = attr?.unit ? ` (${attr.unit})` : '';
+      return `- ${p.id}: ${attr?.name ?? p.attributeId}${unit}, limits ${p.min} to ${p.max}`;
+    })
     .join('\n');
   const catalogueLines = input.catalogue
     .map((c) => `- ${c.id}: ${c.label}. Keywords: ${c.keywords.join(', ')}`)
@@ -156,16 +156,19 @@ missing. Follow these rules.
 3. Components are pieces of purchased or existing hardware the part must fit. Match each one to
    a catalogue record id when one fits, keep its label, and record every measured value as an
    attribute value with source "user". Do not invent measurements.
-4. Print settings hold one clearance value (attribute id "clearance", unit mm). If the user gave
+4. Dimensions of the part itself go in partMeasurements, one entry per design parameter id
+   from the list below, with the value in the parameter's unit. Do not put part dimensions
+   in components or print settings.
+5. Print settings hold one clearance value (attribute id "clearance", unit mm). If the user gave
    none, use ${DEFAULT_CLEARANCE_MM} with source "computed". Add "build-volume" only if the user
    stated one.
-5. The candidate design is "${input.design.id}" (${input.design.name}: ${input.design.description}).
-   Its parameters map to attribute ids listed below. For each parameter whose attribute the
-   request does not measure and that is not a purely stylistic choice, ask for it: return kind
-   "question" listing every missing measurement with its attribute id, name, unit, and why the
+6. The candidate design is "${input.design.id}" (${input.design.name}: ${input.design.description}).
+   For each parameter below that the request does not measure and that is not a purely
+   stylistic choice, ask for it: return kind
+   "question" listing every missing measurement with its parameter id, attribute id, name, unit, and why the
    design needs it, plus one plain question sentence for the user. Values already supplied
    (listed below) count as measured.
-6. When nothing is missing, return kind "specification" with the Plan: function "adaptation",
+7. When nothing is missing, return kind "specification" with the Plan: function "adaptation",
    candidateDesignId "${input.design.id}", riskLabel "needs expert review" if the part touches
    drinking water, medical use, or carries structural load, otherwise "general", and a one or
    two sentence reason.
@@ -207,7 +210,23 @@ export function finaliseRequirements(
   input: Omit<RequirementsInput, 'model'>,
 ): RequirementsResult {
   const parsed = requirementsOutputSchema.parse(output);
-  if (parsed.kind === 'question') return parsed;
+  if (parsed.kind === 'question') {
+    if (!parsed.missing?.length || !parsed.question) {
+      throw new Error(
+        'question output must name at least one missing measurement and a question',
+      );
+    }
+    return {
+      kind: 'question',
+      missing: parsed.missing,
+      question: parsed.question,
+    };
+  }
+  if (!parsed.specification || !parsed.plan) {
+    throw new Error(
+      'specification output must carry a specification and a plan',
+    );
+  }
 
   const clearance = parsed.specification.printSettings.find(
     (v) => v.definitionId === 'clearance',
@@ -229,21 +248,36 @@ export function finaliseRequirements(
     components: parsed.specification.components.map((c) =>
       attachGeometrySource(c, input.catalogue),
     ),
+    partMeasurements: parsed.specification.partMeasurements.map((m) => ({
+      ...m,
+      source: 'user' as const,
+    })),
     printSettings,
   });
 
-  // A value counts as measured when the user supplied it through the panel, when it sits on a
-  // component the part must fit, or when it is a dimension of the part itself, which the model
-  // records under print settings for a standalone design.
-  const measured = new Set<string>(Object.keys(input.measurements ?? {}));
+  // A parameter counts as measured when the user supplied it through the panel (keyed by
+  // parameter id), when the model recorded it as a part measurement, or when a component the
+  // part must fit carries the same attribute.
+  const measuredParameters = new Set<string>(
+    Object.keys(input.measurements ?? {}),
+  );
+  for (const m of specification.partMeasurements)
+    measuredParameters.add(m.parameterId);
+  const measuredAttributes = new Set<string>();
   for (const c of specification.components)
-    for (const v of c.attributes) measured.add(v.definitionId);
-  for (const v of specification.printSettings) measured.add(v.definitionId);
+    for (const v of c.attributes) measuredAttributes.add(v.definitionId);
   const measurementsNeeded = input.design.parameters
-    .filter((p) => !measured.has(p.attributeId))
+    .filter(
+      (p) =>
+        !measuredParameters.has(p.id) && !measuredAttributes.has(p.attributeId),
+    )
     .map((p) => {
       const attr = input.attributes.find((a) => a.id === p.attributeId);
-      return { attributeId: p.attributeId, unit: attr?.unit ?? '' };
+      return {
+        parameterId: p.id,
+        attributeId: p.attributeId,
+        unit: attr?.unit ?? '',
+      };
     });
 
   const plan = planSchema.parse({

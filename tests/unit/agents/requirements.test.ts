@@ -79,6 +79,7 @@ describe('requirements agent (recorded)', () => {
     expect(r.kind).toBe('question');
     if (r.kind !== 'question') return;
     expect(r.missing[0]).toMatchObject({
+      parameterId: 'frame-thickness',
       attributeId: 'thickness',
       unit: 'mm',
     });
@@ -147,7 +148,13 @@ describe('requirements agent (recorded)', () => {
     const f = fixture('no-clearance');
     const r = finaliseRequirements(f.response, {
       ...base(f),
-      measurements: { length: 100, width: 4, thickness: 2, gap: 10 },
+      measurements: {
+        length: 100,
+        'tip-width': 4,
+        'arm-thickness': 2,
+        'arm-gap': 10,
+        'arm-width': 12,
+      },
     });
     if (r.kind !== 'specification') throw new Error('expected specification');
     expect(r.plan.measurementsNeeded).toEqual([]);

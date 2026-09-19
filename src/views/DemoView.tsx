@@ -30,6 +30,7 @@ const requirementsResponse = z.object({
       question: z.string(),
       missing: z.array(
         z.object({
+          parameterId: z.string(),
           attributeId: z.string(),
           name: z.string(),
           unit: z.string(),

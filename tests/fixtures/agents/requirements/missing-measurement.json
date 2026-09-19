@@ -5,8 +5,9 @@
     "kind": "question",
     "missing": [
       {
+        "parameterId": "frame-thickness",
         "attributeId": "thickness",
-        "name": "Thickness",
+        "name": "Frame thickness",
         "unit": "mm",
         "reason": "The clip jaw must match the panel frame thickness."
       }

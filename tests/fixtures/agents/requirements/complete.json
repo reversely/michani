@@ -13,11 +13,33 @@
       ],
       "components": [],
       "printSettings": [
-        { "definitionId": "length", "value": 120, "source": "user" },
-        { "definitionId": "width", "value": 3, "source": "user" },
-        { "definitionId": "thickness", "value": 2, "source": "user" },
-        { "definitionId": "gap", "value": 12, "source": "user" },
-        { "definitionId": "clearance", "value": 0.5, "source": "user" }
+        {
+          "definitionId": "clearance",
+          "value": 0.5,
+          "source": "user"
+        }
+      ],
+      "partMeasurements": [
+        {
+          "parameterId": "length",
+          "value": 120
+        },
+        {
+          "parameterId": "tip-width",
+          "value": 3
+        },
+        {
+          "parameterId": "arm-thickness",
+          "value": 2
+        },
+        {
+          "parameterId": "arm-gap",
+          "value": 12
+        },
+        {
+          "parameterId": "arm-width",
+          "value": 14
+        }
       ]
     },
     "plan": {

@@ -128,11 +128,23 @@ export const componentRecordSchema = z
   .strict();
 export type ComponentRecord = z.infer<typeof componentRecordSchema>;
 
+// A measured dimension of the part itself, keyed by the design's parameter id because two
+// parameters can share one attribute (tweezers have a tip width and a bridge width).
+export const partMeasurementSchema = z
+  .object({
+    parameterId: id,
+    value: z.number(),
+    source: z.enum(['user', 'library', 'computed']),
+  })
+  .strict();
+export type PartMeasurement = z.infer<typeof partMeasurementSchema>;
+
 export const specificationSchema = z
   .object({
     id,
     requirements: z.array(z.string().min(1)).min(1),
     components: z.array(componentRecordSchema),
+    partMeasurements: z.array(partMeasurementSchema).default([]),
     printSettings: z.array(attributeValueSchema),
   })
   .strict();
@@ -145,7 +157,7 @@ export const planSchema = z
     candidateDesignId: id.optional(),
     generationBrief: z.string().optional(),
     measurementsNeeded: z.array(
-      z.object({ attributeId: id, unit: z.string() }).strict(),
+      z.object({ parameterId: id, attributeId: id, unit: z.string() }).strict(),
     ),
     checkIds: z.array(id),
     riskLabel: riskLabelSchema,
