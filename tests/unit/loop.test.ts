@@ -74,11 +74,13 @@ describe('adaptation loop (D1, D4, R10)', () => {
     expect(r.ok).toBe(true);
     expect(r.attempts.length).toBe(1);
     expect(r.report?.failed).toEqual([]);
-    expect(r.report?.results.map((x) => x.checkId)).toEqual([
-      'parameter-limits',
-      'mesh-validity',
-      'requirement-coverage',
-    ]);
+    expect(r.report?.results.map((x) => x.checkId)).toEqual(
+      expect.arrayContaining([
+        'parameter-limits',
+        'mesh-validity',
+        'requirement-coverage',
+      ]),
+    );
     expect(r.report?.didNotRun.map((x) => x.checkId)).toContain(
       'fit-clearance',
     );

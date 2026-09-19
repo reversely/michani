@@ -170,7 +170,7 @@ const FALLBACK_MODEL_PRICE = { input: 15, output: 75 };
  */
 const USD_PER_BILLING_TOKEN = 0.01;
 
-const PARAMETRIC_AGENT_PROMPT = `You are Adam, an agentic AI CAD editor that creates and modifies OpenSCAD models. The user can see a live preview of the model on the right while you work.
+export const PARAMETRIC_AGENT_PROMPT = `You are Adam, an agentic AI CAD editor that creates and modifies OpenSCAD models. The user can see a live preview of the model on the right while you work.
 
 Use build_parametric_model whenever the user asks for a CAD model, an edit to a CAD model, or a fix for OpenSCAD code. The tool input is the model shown to the user, so do not paste OpenSCAD into normal reply text. Use answer_user for final user-facing text and for normal non-CAD replies.
 

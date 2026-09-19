@@ -8,6 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { MeasurementsPanel } from '@/components/demo/MeasurementsPanel';
 import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
 import { CheckReportPanel } from '@/components/demo/CheckReportPanel';
+import {
+  LoopPanel,
+  type LoopCheckRow,
+  type LoopStepRow,
+} from '@/components/demo/LoopPanel';
 import { buildPackageFiles, zipPackage } from '@/utils/packageUtils';
 import type { ReportRecord } from '@/server/report/build';
 import type { Parameter } from '@shared/types';
@@ -144,6 +149,9 @@ export function DemoView() {
   const [library, setLibrary] = useState<LibraryStep>();
   const [loop, setLoop] = useState<LoopStep>();
   const [stlBlob, setStlBlob] = useState<Blob>();
+  const [generation, setGeneration] = useState<LoopStep>();
+  const [refusal, setRefusal] = useState<string>();
+  const [stepTimes, setStepTimes] = useState<Record<string, number>>({});
   const [downloading, setDownloading] = useState(false);
   const [busy, setBusy] = useState<
     'requirements' | 'library' | 'confirm' | 'draft' | null
@@ -189,6 +197,9 @@ export function DemoView() {
         }),
       );
       setElapsedMs(r.elapsedMs);
+      setStepTimes((t) => ({ ...t, requirements: r.elapsedMs }));
+      setRefusal(undefined);
+      setGeneration(undefined);
       setLibrary(undefined);
       setLoop(undefined);
       if (r.result.kind === 'question') {
@@ -220,6 +231,7 @@ export function DemoView() {
       );
       setLibrary(r.result);
       setPlan(r.plan);
+      setStepTimes((t) => ({ ...t, library: r.elapsedMs }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -239,8 +251,40 @@ export function DemoView() {
         }),
       );
       setLoop(r);
+      setStepTimes((t) => ({ ...t, loop: r.elapsedMs }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        /not confirmed|generation_unavailable|plan_not_confirmed/i.test(message)
+      )
+        setRefusal(message);
+      else setError(message);
+    } finally {
+      setBusy(null);
+    }
+  }, [conversationId]);
+
+  const runGenerate = useCallback(async () => {
+    if (!conversationId) return;
+    setBusy('draft');
+    setError(undefined);
+    try {
+      const r = loopResponse.parse(
+        await apiJson('demo/generate', {
+          method: 'POST',
+          body: JSON.stringify({ conversationId }),
+        }),
+      );
+      setGeneration(r);
+      setLoop(r);
+      setStepTimes((t) => ({ ...t, loop: r.elapsedMs }));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        /not confirmed|generation_unavailable|plan_not_confirmed/i.test(message)
+      )
+        setRefusal(message);
+      else setError(message);
     } finally {
       setBusy(null);
     }
@@ -398,6 +442,23 @@ export function DemoView() {
           )}
         </section>
       )}
+      {(question || specification || plan || refusal) && (
+        <LoopPanel
+          steps={loopSteps({
+            question,
+            specification,
+            plan,
+            library,
+            loop,
+            generation,
+            busy,
+            refusal,
+            stepTimes,
+          })}
+          checks={loopChecks(loop)}
+          refusal={refusal}
+        />
+      )}
       {(question || specification || plan) && (
         <MeasurementsPanel
           attributes={attributes}
@@ -416,6 +477,60 @@ export function DemoView() {
           onConfirm={() => void confirmPlan()}
           confirming={busy === 'confirm'}
         />
+      )}
+      {plan && !plan.confirmed && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              void (plan.function === 'generation' ? runGenerate() : runLoop())
+            }
+            disabled={busy !== null}
+            className="w-full sm:w-auto"
+          >
+            Try to {plan.function === 'generation' ? 'generate' : 'draft'}{' '}
+            before confirming (D7)
+          </Button>
+        </div>
+      )}
+      {plan?.confirmed && plan.function === 'generation' && (
+        <section
+          aria-label="Generation, render, and checks"
+          className="flex flex-col gap-3 rounded-lg border border-adam-neutral-700 bg-adam-neutral-900 p-4 sm:p-6"
+        >
+          <h2 className="text-base font-semibold">
+            Generate, render, and checks
+          </h2>
+          {!generation && (
+            <Button
+              type="button"
+              onClick={() => void runGenerate()}
+              disabled={busy !== null}
+              className="w-full sm:w-auto"
+            >
+              {busy === 'draft'
+                ? 'Generating a new design'
+                : 'Generate a new design'}
+            </Button>
+          )}
+          {generation && (
+            <p className="text-sm" role="status">
+              {generation.outcome.message} Generation time{' '}
+              {(generation.elapsedMs / 1000).toFixed(1)} s.
+            </p>
+          )}
+          {generation?.outcome.ok && generation.outcome.params && (
+            <div className="h-[420px] w-full overflow-hidden rounded-md border border-adam-neutral-700">
+              <OpenSCADPreview
+                scadCode={generation.scad}
+                params={generation.outcome.params as Parameter[]}
+                color="#4682B4"
+                onOutputChange={setStlBlob}
+              />
+            </div>
+          )}
+        </section>
       )}
       {plan?.confirmed && plan.function === 'adaptation' && (
         <section
@@ -517,4 +632,115 @@ export function DemoView() {
       ) : null}
     </main>
   );
+}
+
+function loopSteps(state: {
+  question: unknown;
+  specification: unknown;
+  plan?: Plan;
+  library?: LibraryStep;
+  loop?: LoopStep;
+  generation?: LoopStep;
+  busy: string | null;
+  refusal?: string;
+  stepTimes: Record<string, number>;
+}): LoopStepRow[] {
+  const { plan, library, loop, generation, busy, refusal, stepTimes } = state;
+  const requirements: LoopStepRow = {
+    id: 'requirements',
+    label: 'Requirements and plan',
+    status:
+      busy === 'requirements'
+        ? 'running'
+        : state.question
+          ? 'done'
+          : state.specification
+            ? 'done'
+            : 'pending',
+    detail: state.question
+      ? 'asked for a measurement'
+      : state.specification
+        ? 'specification and plan ready'
+        : undefined,
+    elapsedMs: stepTimes.requirements,
+  };
+  const libraryRow: LoopStepRow = {
+    id: 'library',
+    label: 'Library selection',
+    status: busy === 'library' ? 'running' : library ? 'done' : 'pending',
+    detail:
+      library?.kind === 'candidates'
+        ? `${library.candidates.length} candidate${library.candidates.length === 1 ? '' : 's'}`
+        : library?.kind === 'no-match'
+          ? 'no match, plan revised to generation'
+          : undefined,
+    elapsedMs: stepTimes.library,
+  };
+  const confirm: LoopStepRow = {
+    id: 'confirm',
+    label: 'Plan confirmation',
+    status:
+      busy === 'confirm'
+        ? 'running'
+        : plan?.confirmed
+          ? 'done'
+          : refusal
+            ? 'refused'
+            : 'pending',
+    detail: plan
+      ? `${plan.function}${plan.confirmed ? ', confirmed' : ', waiting for confirmation'}`
+      : undefined,
+  };
+  const work = plan?.function === 'generation' ? generation : loop;
+  const workRow: LoopStepRow = {
+    id: 'work',
+    label:
+      plan?.function === 'generation'
+        ? 'Generation and render'
+        : 'Drafting and render',
+    status:
+      busy === 'draft'
+        ? 'running'
+        : refusal
+          ? 'refused'
+          : work
+            ? work.outcome.ok
+              ? 'done'
+              : 'failed'
+            : 'pending',
+    detail: work
+      ? `${work.outcome.attempts.length} attempt${work.outcome.attempts.length === 1 ? '' : 's'}`
+      : undefined,
+    elapsedMs: stepTimes.loop,
+  };
+  const checks: LoopStepRow = {
+    id: 'checks',
+    label: 'Verification',
+    status: work?.outcome.report
+      ? work.outcome.report.failed.length === 0
+        ? 'done'
+        : 'failed'
+      : 'pending',
+    detail: work?.outcome.report
+      ? `${work.outcome.report.results.length} checks ran, ${work.outcome.report.didNotRun.length} did not run`
+      : undefined,
+  };
+  return [requirements, libraryRow, confirm, workRow, checks];
+}
+
+function loopChecks(loop?: LoopStep): LoopCheckRow[] {
+  const report = loop?.outcome.report;
+  if (!report) return [];
+  return [
+    ...report.results.map((r) => ({
+      checkId: r.checkId,
+      result: r.result,
+      finding: r.finding,
+    })),
+    ...report.didNotRun.map((d) => ({
+      checkId: d.checkId,
+      result: 'did not run' as const,
+      finding: d.reason,
+    })),
+  ];
 }

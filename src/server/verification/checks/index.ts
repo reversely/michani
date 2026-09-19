@@ -7,6 +7,7 @@ import {
   requirementCoverage,
   requirementCoverageDefinition,
 } from './requirementCoverage';
+import { printableSize, printableSizeDefinition } from './printableSize';
 
 // Registers the demo's code checks once per process. A new check joins by adding one
 // registerCheck call here (or anywhere that runs before the loop); the controller never changes.
@@ -22,4 +23,6 @@ export function registerDefaultChecks(): void {
     registerCheck(holeAlignmentDefinition, holeAlignment);
   if (!present.has(requirementCoverageDefinition.id))
     registerCheck(requirementCoverageDefinition, requirementCoverage);
+  if (!present.has(printableSizeDefinition.id))
+    registerCheck(printableSizeDefinition, printableSize);
 }
