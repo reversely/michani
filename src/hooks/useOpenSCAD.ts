@@ -1,3 +1,4 @@
+import type { Parameter } from '@shared/types';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   OpenSCADWorkerResponseData,
@@ -153,7 +154,7 @@ export function useOpenSCAD() {
   );
 
   const compileScad = useCallback(
-    async (code: string) => {
+    async (code: string, params: Parameter[] = []) => {
       setIsCompiling(true);
       setError(undefined);
       setIsError(false);
@@ -164,7 +165,7 @@ export function useOpenSCAD() {
         type: WorkerMessageType.PREVIEW,
         data: {
           code,
-          params: [],
+          params,
           fileType: 'stl',
         },
       };
@@ -180,7 +181,10 @@ export function useOpenSCAD() {
   // the live viewer; this id-based variant is what one-shot consumers (e.g.
   // VisualCard thumbnail generation) use to await a colored render.
   const previewScadColored = useCallback(
-    async (code: string): Promise<{ stl: Blob; off: Blob | undefined }> => {
+    async (
+      code: string,
+      params: Parameter[] = [],
+    ): Promise<{ stl: Blob; off: Blob | undefined }> => {
       const worker = getWorker();
       const requestId = `preview-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -198,7 +202,7 @@ export function useOpenSCAD() {
         type: WorkerMessageType.PREVIEW,
         data: {
           code,
-          params: [],
+          params,
           fileType: 'stl',
         },
       };
@@ -226,7 +230,11 @@ export function useOpenSCAD() {
   // Export SCAD from the worker without changing preview state.
   // Used for on-demand downloads like projected DXF.
   const exportScad = useCallback(
-    async (code: string, fileType: string): Promise<Blob> => {
+    async (
+      code: string,
+      fileType: string,
+      params: Parameter[] = [],
+    ): Promise<Blob> => {
       const worker = getWorker();
       const requestId = `export-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
@@ -244,7 +252,7 @@ export function useOpenSCAD() {
         type: WorkerMessageType.EXPORT,
         data: {
           code,
-          params: [],
+          params,
           fileType,
         },
       };

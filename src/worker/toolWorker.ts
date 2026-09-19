@@ -14,6 +14,7 @@
 // depend on component lifecycle. Per-request IDs route responses to
 // the right caller, so concurrent calls don't cross-contaminate.
 
+import type { Parameter } from '@shared/types';
 import {
   OpenSCADWorkerResponseData,
   WorkerMessage,
@@ -58,6 +59,7 @@ function getToolWorker(): Worker {
 
 export async function previewScadColoredViaToolWorker(
   code: string,
+  params: Parameter[] = [],
 ): Promise<{ stl: Blob; off: Blob | undefined }> {
   const worker = getToolWorker();
   const requestId = `tool-preview-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -71,7 +73,7 @@ export async function previewScadColoredViaToolWorker(
   const message: WorkerMessage & { id: string } = {
     id: requestId,
     type: WorkerMessageType.PREVIEW,
-    data: { code, params: [], fileType: 'stl' },
+    data: { code, params, fileType: 'stl' },
   };
 
   worker.postMessage(message);
