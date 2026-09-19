@@ -24,6 +24,7 @@ import { Route as ApiTitleGeneratorRouteImport } from './routes/api/title-genera
 import { Route as ApiPromptGeneratorRouteImport } from './routes/api/prompt-generator';
 import { Route as ApiParametricChatRouteImport } from './routes/api/parametric-chat';
 import { Route as ApiMeshRouteImport } from './routes/api/mesh';
+import { Route as ApiLibraryRouteImport } from './routes/api/library';
 import { Route as ApiFalWebhookRouteImport } from './routes/api/fal-webhook';
 import { Route as ApiDeleteUserRouteImport } from './routes/api/delete-user';
 import { Route as ApiCreativeChatRouteImport } from './routes/api/creative-chat';
@@ -112,6 +113,11 @@ const ApiParametricChatRoute = ApiParametricChatRouteImport.update({
 const ApiMeshRoute = ApiMeshRouteImport.update({
   id: '/api/mesh',
   path: '/api/mesh',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ApiLibraryRoute = ApiLibraryRouteImport.update({
+  id: '/api/library',
+  path: '/api/library',
   getParentRoute: () => rootRouteImport,
 } as any);
 const ApiFalWebhookRoute = ApiFalWebhookRouteImport.update({
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/api/creative-chat': typeof ApiCreativeChatRoute;
   '/api/delete-user': typeof ApiDeleteUserRoute;
   '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/library': typeof ApiLibraryRoute;
   '/api/mesh': typeof ApiMeshRoute;
   '/api/parametric-chat': typeof ApiParametricChatRoute;
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/api/creative-chat': typeof ApiCreativeChatRoute;
   '/api/delete-user': typeof ApiDeleteUserRoute;
   '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/library': typeof ApiLibraryRoute;
   '/api/mesh': typeof ApiMeshRoute;
   '/api/parametric-chat': typeof ApiParametricChatRoute;
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/api/creative-chat': typeof ApiCreativeChatRoute;
   '/api/delete-user': typeof ApiDeleteUserRoute;
   '/api/fal-webhook': typeof ApiFalWebhookRoute;
+  '/api/library': typeof ApiLibraryRoute;
   '/api/mesh': typeof ApiMeshRoute;
   '/api/parametric-chat': typeof ApiParametricChatRoute;
   '/api/prompt-generator': typeof ApiPromptGeneratorRoute;
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
+    | '/api/library'
     | '/api/mesh'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
+    | '/api/library'
     | '/api/mesh'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/api/creative-chat'
     | '/api/delete-user'
     | '/api/fal-webhook'
+    | '/api/library'
     | '/api/mesh'
     | '/api/parametric-chat'
     | '/api/prompt-generator'
@@ -394,6 +406,7 @@ export interface RootRouteChildren {
   ApiCreativeChatRoute: typeof ApiCreativeChatRoute;
   ApiDeleteUserRoute: typeof ApiDeleteUserRoute;
   ApiFalWebhookRoute: typeof ApiFalWebhookRoute;
+  ApiLibraryRoute: typeof ApiLibraryRoute;
   ApiMeshRoute: typeof ApiMeshRoute;
   ApiParametricChatRoute: typeof ApiParametricChatRoute;
   ApiPromptGeneratorRoute: typeof ApiPromptGeneratorRoute;
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mesh';
       fullPath: '/api/mesh';
       preLoaderRoute: typeof ApiMeshRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    '/api/library': {
+      id: '/api/library';
+      path: '/api/library';
+      fullPath: '/api/library';
+      preLoaderRoute: typeof ApiLibraryRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     '/api/fal-webhook': {
@@ -669,6 +689,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCreativeChatRoute: ApiCreativeChatRoute,
   ApiDeleteUserRoute: ApiDeleteUserRoute,
   ApiFalWebhookRoute: ApiFalWebhookRoute,
+  ApiLibraryRoute: ApiLibraryRoute,
   ApiMeshRoute: ApiMeshRoute,
   ApiParametricChatRoute: ApiParametricChatRoute,
   ApiPromptGeneratorRoute: ApiPromptGeneratorRoute,

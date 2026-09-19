@@ -70,6 +70,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      designs: {
+        Row: {
+          conversation_id: string | null;
+          created_at: string;
+          entry: Json;
+          evidence_level: string;
+          id: string;
+          licence: string;
+          part_class: string;
+          scad: string;
+          source: string;
+          updated_at: string;
+        };
+        Insert: {
+          conversation_id?: string | null;
+          created_at?: string;
+          entry: Json;
+          evidence_level: string;
+          id: string;
+          licence: string;
+          part_class: string;
+          scad: string;
+          source: string;
+          updated_at?: string;
+        };
+        Update: {
+          conversation_id?: string | null;
+          created_at?: string;
+          entry?: Json;
+          evidence_level?: string;
+          id?: string;
+          licence?: string;
+          part_class?: string;
+          scad?: string;
+          source?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       images: {
         Row: {
           conversation_id: string;
