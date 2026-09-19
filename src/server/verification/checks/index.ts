@@ -3,6 +3,10 @@ import { parameterLimits, parameterLimitsDefinition } from './parameterLimits';
 import { meshValidity, meshValidityDefinition } from './meshValidity';
 import { fitClearance, fitClearanceDefinition } from './fitClearance';
 import { holeAlignment, holeAlignmentDefinition } from './holeAlignment';
+import {
+  requirementCoverage,
+  requirementCoverageDefinition,
+} from './requirementCoverage';
 
 // Registers the demo's code checks once per process. A new check joins by adding one
 // registerCheck call here (or anywhere that runs before the loop); the controller never changes.
@@ -16,4 +20,6 @@ export function registerDefaultChecks(): void {
     registerCheck(fitClearanceDefinition, fitClearance);
   if (!present.has(holeAlignmentDefinition.id))
     registerCheck(holeAlignmentDefinition, holeAlignment);
+  if (!present.has(requirementCoverageDefinition.id))
+    registerCheck(requirementCoverageDefinition, requirementCoverage);
 }

@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MeasurementsPanel } from '@/components/demo/MeasurementsPanel';
 import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
+import { CheckReportPanel } from '@/components/demo/CheckReportPanel';
+import { buildPackageFiles, zipPackage } from '@/utils/packageUtils';
+import type { ReportRecord } from '@/server/report/build';
 import type { Parameter } from '@shared/types';
 import {
   attributeDefinitionSchema,
@@ -121,6 +124,8 @@ const loopResponse = z.object({
     message: z.string(),
   }),
   scad: z.string(),
+  report: z.unknown().optional(),
+  reportMarkdown: z.string().optional(),
   elapsedMs: z.number(),
 });
 type LoopStep = z.infer<typeof loopResponse>;
@@ -138,6 +143,8 @@ export function DemoView() {
   const [plan, setPlan] = useState<Plan>();
   const [library, setLibrary] = useState<LibraryStep>();
   const [loop, setLoop] = useState<LoopStep>();
+  const [stlBlob, setStlBlob] = useState<Blob>();
+  const [downloading, setDownloading] = useState(false);
   const [busy, setBusy] = useState<
     'requirements' | 'library' | 'confirm' | 'draft' | null
   >(null);
@@ -238,6 +245,38 @@ export function DemoView() {
       setBusy(null);
     }
   }, [conversationId]);
+
+  const downloadPackage = useCallback(async () => {
+    if (
+      !loop?.outcome.ok ||
+      !loop.report ||
+      !loop.reportMarkdown ||
+      !stlBlob ||
+      !loop.outcome.values
+    )
+      return;
+    setDownloading(true);
+    try {
+      const files = buildPackageFiles({
+        stl: new Uint8Array(await stlBlob.arrayBuffer()),
+        scad: loop.scad,
+        values: loop.outcome.values,
+        report: loop.report as ReportRecord,
+        reportMarkdown: loop.reportMarkdown,
+      });
+      const zip = await zipPackage(files);
+      const url = URL.createObjectURL(zip);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${loop.outcome.designId}-package.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDownloading(false);
+    }
+  }, [loop, stlBlob]);
 
   const confirmPlan = useCallback(async () => {
     if (!conversationId) return;
@@ -460,6 +499,7 @@ export function DemoView() {
                     scadCode={loop.scad}
                     params={loop.outcome.params as Parameter[]}
                     color="#4682B4"
+                    onOutputChange={setStlBlob}
                   />
                 </div>
               )}
@@ -467,6 +507,14 @@ export function DemoView() {
           )}
         </section>
       )}
+      {loop?.report ? (
+        <CheckReportPanel
+          report={loop.report as ReportRecord}
+          onDownload={() => void downloadPackage()}
+          downloading={downloading}
+          downloadReady={!!stlBlob && loop.outcome.ok}
+        />
+      ) : null}
     </main>
   );
 }

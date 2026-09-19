@@ -1,0 +1,25 @@
+{
+  "requirements": ["The tweezers are 120 mm long.", "The tip is 3 mm wide."],
+  "values": {
+    "length": 120,
+    "tip_width": 3,
+    "arm_thickness": 2,
+    "arm_gap": 12,
+    "arm_width": 14
+  },
+  "size": [130, 16, 14],
+  "response": {
+    "results": [
+      {
+        "requirement": "The tweezers are 120 mm long.",
+        "result": "pass",
+        "finding": "length = 120 mm."
+      },
+      {
+        "requirement": "The tip is 3 mm wide.",
+        "result": "pass",
+        "finding": "tip_width = 3 mm."
+      }
+    ]
+  }
+}

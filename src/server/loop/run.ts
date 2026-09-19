@@ -98,6 +98,7 @@ export async function runAdaptationLoop(
         renderExitCode: render.exitCode,
         renderLog: render.log,
         buildVolume: input.buildVolume,
+        model: input.model,
       });
       attempt.report = report;
       attempt.elapsedMs = Date.now() - started;

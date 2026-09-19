@@ -29,20 +29,26 @@ const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
   outputTokens: { total: 1, text: 1, reasoning: 0 },
 };
+// Drafting responses are scripted in order; the requirement coverage check, which also calls
+// the model, is answered with an all-pass result whenever its prompt arrives.
 const scripted = (responses: unknown[]) => {
   let i = 0;
   return new MockLanguageModelV3({
-    doGenerate: async () => ({
-      content: [
-        {
-          type: 'text' as const,
-          text: JSON.stringify(responses[Math.min(i++, responses.length - 1)]),
-        },
-      ],
-      finishReason: { unified: 'stop' as const, raw: 'stop' },
-      usage,
-      warnings: [],
-    }),
+    doGenerate: async (options) => {
+      const system = JSON.stringify(
+        options.prompt.find((m) => m.role === 'system') ?? '',
+      );
+      const isCoverage = system.includes('requirement coverage check');
+      const body = isCoverage
+        ? { results: [{ requirement: 'r', result: 'pass', finding: 'ok' }] }
+        : responses[Math.min(i++, responses.length - 1)];
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify(body) }],
+        finishReason: { unified: 'stop' as const, raw: 'stop' },
+        usage,
+        warnings: [],
+      };
+    },
   });
 };
 const full = (length: number) => ({
@@ -71,6 +77,7 @@ describe('adaptation loop (D1, D4, R10)', () => {
     expect(r.report?.results.map((x) => x.checkId)).toEqual([
       'parameter-limits',
       'mesh-validity',
+      'requirement-coverage',
     ]);
     expect(r.report?.didNotRun.map((x) => x.checkId)).toContain(
       'fit-clearance',
@@ -112,8 +119,13 @@ describe('adaptation loop (D1, D4, R10)', () => {
     expect(r.ok).toBe(true);
     expect(r.attempts.length).toBe(2);
     expect(r.attempts[0].report?.failed[0].checkId).toBe('mesh-validity');
+    const draftingCalls = model.doGenerateCalls.filter((c) =>
+      JSON.stringify(c.prompt.find((m) => m.role === 'system')).includes(
+        'drafting step',
+      ),
+    );
     const secondSystem = JSON.stringify(
-      model.doGenerateCalls[1].prompt.find((m) => m.role === 'system'),
+      draftingCalls[1].prompt.find((m) => m.role === 'system'),
     );
     expect(secondSystem).toMatch(/build volume/);
   }, 60_000);

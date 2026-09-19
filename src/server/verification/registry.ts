@@ -8,6 +8,7 @@ import {
   type Specification,
 } from '@shared/schemas/library';
 import type { StlSummary } from '@shared/stl';
+import type { LanguageModel } from 'ai';
 
 // Verification registry (PRD, Verification interface; goal 6; D6). A check registers once with
 // its definition and an implementation. The runner asks the registry which checks apply to a
@@ -22,6 +23,8 @@ export type CheckInputs = {
   renderExitCode?: number;
   renderLog?: string;
   buildVolume?: [number, number, number];
+  // Present when a model-backed check may call the language model.
+  model?: LanguageModel;
 };
 
 export type CheckOutcome = Omit<CheckResult, 'checkId'>;

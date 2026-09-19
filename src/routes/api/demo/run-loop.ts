@@ -7,6 +7,7 @@ import { requiredEnv } from '@/server/env';
 import { getFolderIndex, listDesigns } from '@/server/library';
 import { PlanNotConfirmedError } from '@/server/loop/controller';
 import { runAdaptationLoop } from '@/server/loop/run';
+import { buildReport, renderMarkdown } from '@/server/report/build';
 import {
   DemoAuthError,
   loadDemoConversation,
@@ -70,10 +71,22 @@ export const Route = createFileRoute('/api/demo/run-loop')({
             loop: outcome,
           });
           const { scad, ...entry } = used;
+          const report = outcome.report
+            ? buildReport({
+                design: used,
+                specification: demo.specification,
+                plan: demo.plan,
+                values: outcome.values ?? {},
+                report: outcome.report,
+                attempts: outcome.attempts.length,
+              })
+            : undefined;
           return json({
             outcome,
             design: entry,
             scad,
+            report,
+            reportMarkdown: report ? renderMarkdown(report) : undefined,
             elapsedMs: Date.now() - started,
           });
         } catch (err) {
