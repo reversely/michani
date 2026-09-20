@@ -51,6 +51,25 @@ export function saveSession(session: Session): void {
   writeFileSync(path.join(dir, `${session.id}.json`), JSON.stringify(session));
 }
 
+// Progress of the turn in flight, per session, in memory only (issue #27). The screen
+// polls it while it waits; the finished execution keeps the durable copy.
+import type { ProgressEvent } from '@/engine/progress';
+const progress = new Map<string, ProgressEvent[]>();
+
+export function startProgress(
+  id: string,
+): (e: Omit<ProgressEvent, 'at'>) => void {
+  const events: ProgressEvent[] = [];
+  progress.set(sessionId.parse(id), events);
+  return (e) => {
+    events.push({ ...e, at: new Date().toISOString() });
+  };
+}
+
+export function progressOf(id: string): ProgressEvent[] {
+  return progress.get(sessionId.parse(id)) ?? [];
+}
+
 export type SessionSummary = {
   id: string;
   title: string;

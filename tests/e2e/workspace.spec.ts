@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
 
@@ -65,7 +65,31 @@ const fixture = (id: string, summary: string, state: string, ok?: boolean) => ({
           values: { width: 120, depth: 80, height: 40 },
           scad: 'cube([120, 80, 40]);',
           attempts: [
-            { attempt: 1, designId: 'x', values: {}, violations: [], ms: 1 },
+            {
+              attempt: 1,
+              designId: 'x',
+              values: {},
+              violations: [],
+              ms: 1,
+              builds: 2,
+              prompt: {
+                system: 'You are Adam, an agentic AI CAD editor (fixture).',
+                user: `${summary}\nSize: width 120 mm, depth 80 mm, height 40 mm.\nMaterial: pla.`,
+              },
+              // The two views the unit test rasterised, when it has run; else none.
+              views: ['1', '2']
+                .map(
+                  (n) => `docs/progress/20260919-snapshot-l-bracket-${n}.png`,
+                )
+                .filter((f) => existsSync(f))
+                .map((f, i) => ({
+                  label:
+                    i === 0
+                      ? 'isometric front, from above'
+                      : 'isometric back, from below',
+                  pngBase64: readFileSync(f).toString('base64'),
+                })),
+            },
           ],
           verification: {
             verdicts: [
@@ -159,6 +183,29 @@ for (const theme of ['light', 'dark'] as const) {
     });
   });
 }
+
+test('a finished part shows its stage strip, built views, and the prompt sent to CADAM', async ({
+  page,
+}) => {
+  await page.goto('engine?part=22222222-2222-4222-8222-222222222222');
+  const strip = page.getByRole('status', { name: 'Progress' });
+  await expect(strip).toBeVisible({ timeout: 15_000 });
+  await expect(strip.locator('[aria-current="step"]')).toHaveText('Done');
+  await expect(
+    page.getByText('Prompt sent to CADAM', { exact: false }),
+  ).toBeVisible();
+  await page.getByText('Prompt sent to CADAM', { exact: false }).click();
+  await expect(page.getByText('agentic AI CAD editor (fixture)')).toBeVisible();
+  expect(await page.getByRole('img', { name: /Rendered view/ }).count()).toBe(
+    2,
+  );
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: shot('light-5-result'), fullPage: true });
+});
+
+test('the progress route refuses a bad id', async ({ request }) => {
+  expect((await request.get('api/engine/progress?id=nope')).status()).toBe(400);
+});
 
 test('pin and rename persist through the PATCH route', async ({ page }) => {
   await page.goto('engine');

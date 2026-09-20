@@ -114,3 +114,22 @@
     transition: none;
   }
 }
+
+/* A stage in flight breathes; opacity only, and still under reduced motion. */
+@keyframes ws-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.ws-pulse {
+  animation: ws-breathe 1.6s var(--ease-in-out) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-pulse {
+    animation: none;
+  }
+}

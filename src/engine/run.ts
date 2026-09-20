@@ -21,11 +21,17 @@ import { registerDefaultTools, library } from './tools';
 // "yes" while planned confirms the plan; anything else while planned is treated as a change
 // of mind that returns to gathering with the message appended.
 
+import type { OnProgress } from './progress';
+
 export type EngineReply = { session: Session; reply: string };
 
 export type Engine = {
   start: () => Session;
-  turn: (session: Session, message: string) => Promise<EngineReply>;
+  turn: (
+    session: Session,
+    message: string,
+    onProgress?: OnProgress,
+  ) => Promise<EngineReply>;
 };
 
 export function createEngine(model: LanguageModel): Engine {
@@ -34,12 +40,12 @@ export function createEngine(model: LanguageModel): Engine {
   const extract = requirementsExtractor(model);
   return {
     start: () => newSession(crypto.randomUUID()),
-    async turn(session, message) {
+    async turn(session, message, onProgress) {
       switch (session.state) {
         case 'gathering': {
           const r = await gatherTurn(session, message, extract);
           if (r.session.state !== 'specified') return r;
-          const planned = await planSession(r.session, model);
+          const planned = await planSession(r.session, model, onProgress);
           return {
             session: addTurn(planned.session, 'assistant', planned.reply),
             reply: `${r.reply} ${planned.reply}`,
@@ -62,6 +68,7 @@ export function createEngine(model: LanguageModel): Engine {
           const executed = await executeSession(
             addTurn(confirmed, 'assistant', reply),
             model,
+            onProgress,
           );
           const summary = summariseExecution(executed.execution);
           return {

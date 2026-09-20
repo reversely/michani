@@ -20,6 +20,7 @@ import { cadam } from './tools/cadam';
 import { library } from './tools';
 import { runVerification, type VerificationRun } from './agents/verification';
 import { advance, confirmPlan, setPlan, type Session } from './session';
+import { noProgress, type OnProgress, type ProgressView } from './progress';
 
 // The engine loop after gathering (issues #11 to #15): select a design and plan, wait for the
 // person's confirmation, then draft or generate, render through CADAM, and verify with the
@@ -35,6 +36,10 @@ export type Attempt = {
   renderMs?: number;
   verification?: VerificationRun;
   ms: number;
+  // Generation attempts keep what CADAM received and what it built (issue #27).
+  builds?: number;
+  prompt?: { system: string; user: string };
+  views?: ProgressView[];
 };
 
 export type Execution = {
@@ -56,7 +61,9 @@ export type Execution = {
 export async function planSession(
   session: Session,
   model: LanguageModel,
+  onProgress: OnProgress = noProgress,
 ): Promise<{ session: Session; library: LibraryResult; reply: string }> {
+  onProgress({ stage: 'plan', detail: 'matching the library' });
   const { designs, components } = library();
   const result = await runLibraryAgent({
     model,
@@ -109,6 +116,7 @@ export function confirmSession(session: Session): Session {
 export async function executeSession(
   session: Session,
   model: LanguageModel,
+  onProgress: OnProgress = noProgress,
 ): Promise<{ session: Session; execution: Execution }> {
   if (session.state !== 'confirmed' || !session.plan)
     throw new Error('session is not confirmed');
@@ -134,6 +142,7 @@ export async function executeSession(
         renderExitCode: render.exitCode,
       },
       model,
+      (e) => onProgress({ ...e, attempt: attemptNo }),
     );
     const attempt: Attempt = {
       attempt: attemptNo,
@@ -170,6 +179,7 @@ export async function executeSession(
       verification,
       message,
     };
+    onProgress({ stage: 'done', detail: message });
     return {
       session: advance({ ...session, execution }, 'executed'),
       execution,
@@ -197,6 +207,7 @@ export async function executeSession(
           feedback,
         ),
         model,
+        (e) => onProgress({ ...e, attempt: i }),
       );
       const design = {
         ...designFromGeneratedCode({
@@ -214,6 +225,9 @@ export async function executeSession(
         design.parameters.map((p) => [p.variable, p.default]),
       );
       const { ok, attempt } = await verify(design, values, i, started);
+      attempt.builds = generated.builds;
+      attempt.prompt = generated.prompt;
+      attempt.views = generated.views;
       last = { design, values, verification: attempt.verification };
       const revisable =
         attempt.verification?.warned.filter((v) => v.suggestedRevision) ?? [];
@@ -254,6 +268,11 @@ export async function executeSession(
   let lastValues: Record<string, number> = {};
   for (let i = 1; i <= MAX_ATTEMPTS; i++) {
     const started = Date.now();
+    onProgress({
+      stage: 'draft',
+      attempt: i,
+      detail: 'choosing parameter values',
+    });
     const draft = await runDraftingAgent({
       model,
       specification,

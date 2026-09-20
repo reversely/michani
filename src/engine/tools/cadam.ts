@@ -7,6 +7,12 @@ import { parametricArtifactSchema } from '@shared/chatAi';
 import { PARAMETRIC_AGENT_PROMPT } from '@/server/aiChat';
 import { renderScadToStl } from '@/server/render/openscad';
 import { snapshotStl, type SnapshotView } from '@/server/render/snapshot';
+import {
+  noProgress,
+  viewsToProgress,
+  type OnProgress,
+  type ProgressView,
+} from '@/engine/progress';
 
 // CADAM as an external tool (issue #12). The engine calls CADAM for three things and nothing
 // else: generate OpenSCAD from a brief, render OpenSCAD with parameter overrides, and extract
@@ -20,6 +26,10 @@ export type CadamGeneration = {
   code: string;
   // How many times the model built and looked before it stopped.
   builds: number;
+  // The exact prompt CADAM received, for the reference on the screen.
+  prompt: { system: string; user: string };
+  // The views of the last build, the preview of the item as built.
+  views: ProgressView[];
 };
 
 export type CadamSnapshot = CadamRender & { views: SnapshotView[] };
@@ -70,7 +80,11 @@ export type CadamRender = {
 };
 
 export interface CadamAdapter {
-  generate(brief: string, model: LanguageModel): Promise<CadamGeneration>;
+  generate(
+    brief: string,
+    model: LanguageModel,
+    onProgress?: OnProgress,
+  ): Promise<CadamGeneration>;
   render(scad: string, overrides: Record<string, number>): Promise<CadamRender>;
   // Render plus two 3D views of the result (issue #25).
   snapshot(
@@ -83,11 +97,14 @@ export interface CadamAdapter {
 export const localCadam: CadamAdapter = {
   // The write, render, look, rewrite loop CADAM runs in the browser, run here on the server
   // with the views as tool results (issue #25). The last build is the generation.
-  async generate(brief, model) {
+  async generate(brief, model, onProgress = noProgress) {
     let last: CadamGeneration | undefined;
+    const system = `${PARAMETRIC_AGENT_PROMPT}\n${VIEW_RULES}`;
+    const prompt = { system, user: brief };
+    onProgress({ stage: 'generate', detail: 'writing the script', prompt });
     await generateText({
       model,
-      system: `${PARAMETRIC_AGENT_PROMPT}\n${VIEW_RULES}`,
+      system,
       prompt: brief,
       tools: {
         build_parametric_model: tool({
@@ -95,11 +112,27 @@ export const localCadam: CadamAdapter = {
             'Builds the OpenSCAD script, renders it, and returns two 3D views of the result as images.',
           inputSchema: parametricArtifactSchema,
           execute: async (artifact) => {
+            const builds = (last?.builds ?? 0) + 1;
+            onProgress({
+              stage: 'generate',
+              build: builds,
+              detail: 'rendering',
+            });
+            const snap = await localCadam.snapshot(artifact.code, {});
+            const views = viewsToProgress(snap.views);
             last = {
               ...parametricArtifactSchema.parse(artifact),
-              builds: (last?.builds ?? 0) + 1,
+              builds,
+              prompt,
+              views,
             };
-            return localCadam.snapshot(artifact.code, {});
+            onProgress({
+              stage: 'generate',
+              build: builds,
+              detail: snap.exitCode === 0 ? 'views returned' : 'render failed',
+              views,
+            });
+            return snap;
           },
           toModelOutput: ({ output }) => snapshotToModelOutput(output),
         }),

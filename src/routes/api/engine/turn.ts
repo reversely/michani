@@ -6,6 +6,7 @@ import {
   engineInstance,
   loadSession,
   saveSession,
+  startProgress,
 } from '@/server/engine/store';
 import type { Execution } from '@/engine/loop';
 
@@ -32,6 +33,7 @@ export const Route = createFileRoute('/api/engine/turn')({
           const r = await engineInstance().turn(
             loadSession(body.sessionId),
             body.message,
+            startProgress(body.sessionId),
           );
           saveSession(r.session);
           const execution = r.session.execution as Execution | undefined;

@@ -5,6 +5,7 @@ import type { StlSummary } from '@shared/stl';
 import { toolSet } from '@/engine/tools/registry';
 import { researchTools } from '@/engine/tools/research';
 import { parseJsonAnswer } from '@/server/agents/output';
+import { noProgress, type OnProgress } from '@/engine/progress';
 
 // Verification agents (issue #14). Each registers with a name, the part classes it covers, a
 // tool set, a step budget, and instructions. It concludes with a result, a finding, a
@@ -176,10 +177,17 @@ export type VerificationRun = {
 export async function runVerification(
   ctx: VerificationContext,
   model: LanguageModel,
+  onProgress: OnProgress = noProgress,
 ): Promise<VerificationRun> {
   const verdicts: AgentVerdict[] = [];
-  for (const agent of agentsFor(ctx.partClass))
+  for (const agent of agentsFor(ctx.partClass)) {
+    onProgress({
+      stage: 'verify',
+      agentId: agent.id,
+      detail: `${agent.name} agent`,
+    });
     verdicts.push(await runVerificationAgent(agent, ctx, model));
+  }
   const didNotRun = listVerificationAgents()
     .filter((a) => !a.partClasses.includes(ctx.partClass))
     .map((a) => ({

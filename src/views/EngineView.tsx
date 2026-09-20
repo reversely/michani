@@ -10,6 +10,14 @@ import { apiUrl } from '@/services/api';
 import { OpenSCADPreview } from '@/components/viewer/OpenSCADViewer';
 import type { Parameter } from '@shared/types';
 import { LibrarySpace } from '@/views/LibrarySpace';
+import {
+  BuildViews,
+  PromptReference,
+  StageStrip,
+  stageOfEvent,
+  stageOfState,
+  type ProgressEvent,
+} from '@/engine-ui/StageStrip';
 import '@/engine-ui/tokens.css';
 
 // The workspace (issues #17, #20, #21): a sidebar that keeps sessions, the conversation in
@@ -86,7 +94,20 @@ const sessionSchema = z.object({
       riskLabel: z.string(),
       values: z.record(z.number()),
       scad: z.string().optional(),
-      attempts: z.array(z.object({ attempt: z.number() }).passthrough()),
+      attempts: z.array(
+        z
+          .object({
+            attempt: z.number(),
+            builds: z.number().optional(),
+            prompt: z
+              .object({ system: z.string(), user: z.string() })
+              .optional(),
+            views: z
+              .array(z.object({ label: z.string(), pngBase64: z.string() }))
+              .optional(),
+          })
+          .passthrough(),
+      ),
       verification: z
         .object({
           verdicts: z.array(verdictSchema),
@@ -198,10 +219,27 @@ const STATE_LABEL: Record<string, string> = {
   gathering: 'gathering',
   specified: 'specified',
   planned: 'plan ready',
-  confirmed: 'running',
+  confirmed: 'generating',
   executed: 'done',
   reported: 'done',
 };
+
+const progressSchema = z.object({
+  events: z.array(
+    z.object({
+      at: z.string(),
+      stage: z.enum(['plan', 'generate', 'draft', 'verify', 'done']),
+      detail: z.string(),
+      attempt: z.number().optional(),
+      build: z.number().optional(),
+      agentId: z.string().optional(),
+      prompt: z.object({ system: z.string(), user: z.string() }).optional(),
+      views: z
+        .array(z.object({ label: z.string(), pngBase64: z.string() }))
+        .optional(),
+    }),
+  ),
+});
 
 // Sidebar pieces (issue #26). Icons are 16 px line drawings in currentColor so they take the
 // sidebar's text colour and need no font or asset. The current item carries the accent as a
@@ -300,6 +338,8 @@ export function EngineView() {
   const [draft, setDraft] = useState('');
   const [detailsDraft, setDetailsDraft] = useState<string>();
   const [busy, setBusy] = useState(false);
+  // Events of the turn in flight (issue #27), polled once a second while busy.
+  const [progress, setProgress] = useState<ProgressEvent[]>([]);
   const [error, setError] = useState<string>();
   const [elapsed, setElapsed] = useState<number>();
   const [railOpen, setRailOpen] = useState(true);
@@ -354,6 +394,27 @@ export function EngineView() {
     endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [session?.transcript.length, busy]);
 
+  useEffect(() => {
+    if (!busy) return;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const r = await fetch(
+          apiUrl(`engine/progress?id=${encodeURIComponent(sessionId)}`),
+        );
+        const data = progressSchema.parse(await r.json());
+        if (!stopped) setProgress(data.events);
+      } catch {
+        // The strip keeps its last events; the turn's own response follows.
+      }
+    };
+    const timer = setInterval(() => void tick(), 1000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [busy, sessionId]);
+
   const openSession = useCallback(async (id: string) => {
     setError(undefined);
     setNavOpen(false);
@@ -364,16 +425,18 @@ export function EngineView() {
       const data = (await r.json()) as { session: unknown };
       setSession(sessionSchema.parse(data.session));
       setSessionId(id);
+      setProgress([]);
       setView('part');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   }, []);
 
+  // Read once at mount: the URL-writing effect above clears the query before a later read.
+  const [initialPart] = useState(() => readPart());
   useEffect(() => {
-    const id = readPart();
-    if (id) void openSession(id);
-  }, [openSession]);
+    if (initialPart) void openSession(initialPart);
+  }, [initialPart, openSession]);
 
   const newSession = useCallback(() => {
     setSession(undefined);
@@ -415,6 +478,7 @@ export function EngineView() {
       setBusy(true);
       setError(undefined);
       setDraft('');
+      setProgress([]);
       setSession(
         (s) =>
           s && {
@@ -455,6 +519,10 @@ export function EngineView() {
 
   const spec = session?.specification;
   const exec = session?.execution;
+  const latestEvent = progress[progress.length - 1];
+  const latestViews = [...progress].reverse().find((e) => e.views?.length);
+  const latestPrompt = [...progress].reverse().find((e) => e.prompt);
+  const lastAttempt = exec?.attempts[exec.attempts.length - 1];
   const params: Parameter[] | undefined = exec?.ok
     ? Object.entries(exec.values).map(([name, value]) => ({
         name,
@@ -857,9 +925,11 @@ export function EngineView() {
                   {current?.title || spec?.summary || 'New part'}
                 </h1>
                 <p className="text-xs" style={{ color: 'var(--ink-meta)' }}>
-                  {session
-                    ? (STATE_LABEL[session.state] ?? session.state)
-                    : 'new session'}
+                  {busy && latestEvent
+                    ? latestEvent.detail
+                    : session
+                      ? (STATE_LABEL[session.state] ?? session.state)
+                      : 'new session'}
                   {elapsed !== undefined
                     ? `, last turn ${(elapsed / 1000).toFixed(1)} s`
                     : ''}
@@ -909,13 +979,33 @@ export function EngineView() {
                   {t.text}
                 </p>
               ))}
-              {busy && (
-                <p
-                  className="ws-enter self-start px-3 py-2"
-                  style={{ color: 'var(--ink-meta)' }}
+              {(busy || (session && session.state !== 'gathering')) && (
+                <div
+                  className="ws-enter flex flex-col gap-3 rounded-lg p-3"
+                  style={surface}
                 >
-                  Working
-                </p>
+                  <StageStrip
+                    stage={
+                      latestEvent
+                        ? stageOfEvent(latestEvent)
+                        : session
+                          ? stageOfState(session.state)
+                          : 'gather'
+                    }
+                    busy={busy}
+                    latest={busy ? latestEvent : undefined}
+                    failed={exec ? !exec.ok : false}
+                  />
+                  {busy && latestViews && (
+                    <BuildViews
+                      views={latestViews.views!}
+                      caption={`Build ${latestViews.build ?? ''} as rendered, ${latestViews.detail}`}
+                    />
+                  )}
+                  {busy && latestPrompt && (
+                    <PromptReference prompt={latestPrompt.prompt!} />
+                  )}
+                </div>
               )}
               {error && (
                 <p
@@ -1114,6 +1204,19 @@ export function EngineView() {
               >
                 <h2 className="mb-2 text-base font-semibold">Result</h2>
                 <p>{exec.message}</p>
+                {lastAttempt?.views && (
+                  <div className="my-2">
+                    <BuildViews
+                      views={lastAttempt.views}
+                      caption={`As built, attempt ${lastAttempt.attempt}${lastAttempt.builds ? `, ${lastAttempt.builds} build${lastAttempt.builds === 1 ? '' : 's'}` : ''}`}
+                    />
+                  </div>
+                )}
+                {lastAttempt?.prompt && (
+                  <div className="my-2">
+                    <PromptReference prompt={lastAttempt.prompt} />
+                  </div>
+                )}
                 <p style={{ color: 'var(--ink-dim)' }}>
                   {exec.designName} ({exec.source}, evidence level{' '}
                   {exec.evidenceLevel}, risk label {exec.riskLabel}),{' '}

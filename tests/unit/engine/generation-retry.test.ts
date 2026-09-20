@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { MockLanguageModelV3 } from 'ai/test';
 import { createEngine } from '@/engine/run';
 import { generationBriefWithFeedback, type Execution } from '@/engine/loop';
+import type { ProgressEvent } from '@/engine/progress';
 
 // Issue #16: a failed verdict feeds the next generation, and the loop stops at three attempts.
 const usage = {
@@ -148,7 +149,26 @@ describe('generation retries (#16)', () => {
       engine.start(),
       'A garden bench for two adults, 1200 mm wide, PETG, fits nothing, outdoors.',
     );
-    r = await engine.turn(r.session, 'yes');
+    const events: Array<Omit<ProgressEvent, 'at'>> = [];
+    r = await engine.turn(r.session, 'yes', (e) => events.push(e));
+    // Progress (#27): generate with the prompt, the build with its views, verify per
+    // agent, done; the attempt keeps the prompt and views.
+    const stages = events.map(
+      (e) => `${e.stage}${e.build ? `:${e.build}` : ''}`,
+    );
+    expect(stages[0]).toBe('generate');
+    expect(events[0].prompt?.system).toMatch(/agentic AI CAD editor/);
+    expect(events[0].prompt?.user).toMatch(/bench/i);
+    expect(stages).toContain('generate:1');
+    expect(events.find((e) => e.build === 1 && e.views)?.views).toHaveLength(2);
+    expect(
+      events.filter((e) => e.stage === 'verify').map((e) => e.agentId),
+    ).toContain('shape');
+    expect(stages[stages.length - 1]).toBe('done');
+    const first = (r.session.execution as Execution).attempts[0];
+    expect(first.prompt?.user).toMatch(/bench/i);
+    expect(first.views).toHaveLength(2);
+    expect(first.builds).toBe(1);
     expect((r.session.execution as Execution).attempts).toHaveLength(1);
     expect(generationPrompts).toHaveLength(1);
     // The model saw two image parts after its build (#25).
